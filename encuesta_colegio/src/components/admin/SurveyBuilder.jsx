@@ -1,8 +1,10 @@
 import { useForm, useFieldArray } from "react-hook-form";
-import { Plus, Trash2, Save, Calendar, Users, Type } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import axios from "axios";
+import toast from "react-hot-toast"; // Para errores ligeros
+import Swal from "sweetalert2"; // <--- Para el ÉXITO ROTUNDO
+import api from "../../api/axiosConfig";
 
 const SECCIONES_DOCENTE = [
   "Parte I – Área personal y social",
@@ -37,33 +39,24 @@ const SurveyBuilder = () => {
     name: "questions",
   });
 
-  // Cargar plantillas
-  // EFECTO: Cargar datos (Clonación o Plantilla por defecto)
   useEffect(() => {
     if (cloneData) {
-      // A. MODO CLONACIÓN
-      // Rellenamos el formulario con los datos de la encuesta vieja
-      setValue("title", `${cloneData.title} (Copia)`); // Agregamos "(Copia)" para que se note
+      setValue("title", `${cloneData.title} (Copia)`);
       setValue("target_audience", cloneData.target_audience);
       setValue("description", cloneData.description || "");
-
-      // Si es docente a docente, rellenamos los campos extra
       if (cloneData.evaluated_name)
         setValue("evaluated_name", cloneData.evaluated_name);
       if (cloneData.subject) setValue("subject", cloneData.subject);
 
-      // Mapeamos las preguntas para que coincidan con el formato del formulario
       const formattedQuestions = cloneData.questions_analysis.map((q) => ({
-        text: q.question_text, // En la BD se llama question_text
-        type: q.question_type, // En la BD se llama question_type
+        text: q.question_text,
+        type: q.question_type,
         category: q.category || "General",
       }));
 
       replace(formattedQuestions);
-
-      // Nota: No copiamos la fecha de expiración para obligar a poner una nueva
+      toast.success("Plantilla cargada", { icon: "📋" });
     } else {
-      // B. MODO NUEVA ENCUESTA (Tu lógica anterior)
       if (targetAudience === "DOCENTE_A_DOCENTE") {
         replace([
           {
@@ -94,32 +87,67 @@ const SurveyBuilder = () => {
         setValue("title", "Evaluación Docente");
       }
     }
-    // Agregamos 'cloneData' a las dependencias para que solo corra una vez
   }, [targetAudience, replace, setValue, cloneData]);
 
+  // --- NUEVA LÓGICA DE ENVÍO CON CONFIRMACIÓN MODAL ---
   const onSubmit = async (data) => {
+    // 1. Validar preguntas
+    if (data.questions.length === 0) {
+      toast.error("¡Agrega al menos una pregunta!", { duration: 3000 });
+      return;
+    }
+
     setIsSubmitting(true);
+    const loadingToast = toast.loading("Guardando encuesta...");
+
     try {
-      const payload = {
+      // 2. Guardar en Backend
+      const res = await api.post("/api/surveys", {
         ...data,
         expiration_date: new Date(data.expiration_date).toISOString(),
-      };
-      const res = await axios.post(
-        "http://localhost:3000/api/surveys",
-        payload
-      );
+      });
+
+      // 3. Limpiar estado de carga
+      toast.dismiss(loadingToast);
+
+      // 4. Copiar link automáticamente
       const link = `${window.location.origin}/encuesta/${res.data.link}`;
       navigator.clipboard.writeText(link);
-      alert(`✅ Encuesta creada.\nLink: ${link}`);
+
+      // 5. MOSTRAR MODAL DE ÉXITO (SweetAlert2)
+      // Esto detiene la navegación hasta que el usuario hace clic en "OK"
+      await Swal.fire({
+        title: "¡Encuesta Creada!",
+        html: `
+          <p class="text-gray-600 mb-4">La encuesta se ha guardado correctamente.</p>
+          <div class="bg-gray-100 p-3 rounded border text-sm text-blue-600 font-mono break-all">
+            ${link}
+          </div>
+          <p class="text-xs text-gray-400 mt-2">Enlace copiado al portapapeles automáticamente ✨</p>
+        `,
+        icon: "success",
+        confirmButtonText: "Ir al Panel de Control",
+        confirmButtonColor: "#2563eb", // Azul bonito
+        allowOutsideClick: false, // Obliga a dar clic en el botón
+      });
+
+      // 6. Redirigir SOLO después de que cerraron el modal
       navigate("/admin/dashboard");
     } catch (e) {
-      alert("Error al guardar");
-    } finally {
+      console.error(e);
+      toast.dismiss(loadingToast);
+
+      // Modal de Error si falla
+      Swal.fire({
+        title: "Error",
+        text: "No se pudo guardar la encuesta. Intenta nuevamente.",
+        icon: "error",
+      });
+
       setIsSubmitting(false);
     }
   };
 
-  // Renderizado limpio de secciones
   const renderSection = (sectionTitle) => (
     <div className="mb-8">
       <h3 className="text-blue-600 font-bold text-lg border-b border-blue-100 pb-2 mb-4">
@@ -175,67 +203,103 @@ const SurveyBuilder = () => {
     <div className="max-w-4xl mx-auto p-8 bg-white shadow-sm border border-gray-200 rounded-xl mt-6 mb-12">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Nueva Encuesta</h2>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      {/* Formulario con validador de errores visual */}
+      <form
+        onSubmit={handleSubmit(onSubmit, (errors) => {
+          if (errors.title) toast.error("Falta el título");
+          else if (errors.expiration_date)
+            toast.error("Falta la fecha de cierre");
+          else toast.error("Revisa los campos obligatorios");
+        })}
+        className="space-y-8"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="col-span-2">
-            <label className="text-sm font-semibold text-gray-600">
+            <label className="block text-sm font-bold text-gray-700 mb-1">
               Tipo de Encuesta
             </label>
             <select
               {...register("target_audience")}
-              className="w-full mt-1 p-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none"
+              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
             >
               <option value="ESTUDIANTE_A_DOCENTE">Estudiante a Docente</option>
               <option value="DOCENTE_A_DOCENTE">Directiva a Docente</option>
             </select>
           </div>
+
           <div className="col-span-2 md:col-span-1">
+            <label className="block text-sm font-bold text-gray-700 mb-1">
+              Título de la Encuesta <span className="text-red-500">*</span>
+            </label>
             <input
-              {...register("title")}
-              placeholder="Título de la Encuesta"
-              className="w-full p-2 border rounded-lg"
-            />
-          </div>
-          <div className="col-span-2 md:col-span-1">
-            <input
-              type="datetime-local"
-              {...register("expiration_date")}
-              className="w-full p-2 border rounded-lg"
+              {...register("title", { required: true })}
+              placeholder="Ej: Evaluación Primer Lapso"
+              className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
             />
           </div>
 
-          {/* Campos dinámicos de nombres */}
+          <div className="col-span-2 md:col-span-1">
+            <label className="block text-sm font-bold text-gray-700 mb-1">
+              Fecha de Cierre <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="datetime-local"
+              {...register("expiration_date", { required: true })}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
+            />
+          </div>
+
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
             <>
-              <input
-                {...register("evaluated_name")}
-                placeholder="Nombre del Docente"
-                className="p-2 border rounded-lg"
-              />
-              <input
-                {...register("subject")}
-                placeholder="Grado / Sección"
-                className="p-2 border rounded-lg"
-              />
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Nombre del Docente
+                </label>
+                <input
+                  {...register("evaluated_name")}
+                  placeholder="Nombre y Apellido"
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Grado / Sección
+                </label>
+                <input
+                  {...register("subject")}
+                  placeholder="Ej: 4to Grado A"
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                />
+              </div>
             </>
           ) : (
             <>
-              <input
-                {...register("evaluated_name")}
-                placeholder="Nombre del Profesor"
-                className="p-2 border rounded-lg"
-              />
-              <input
-                {...register("subject")}
-                placeholder="Materia"
-                className="p-2 border rounded-lg"
-              />
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Nombre del Profesor
+                </label>
+                <input
+                  {...register("evaluated_name")}
+                  placeholder="Nombre del Profesor"
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Materia
+                </label>
+                <input
+                  {...register("subject")}
+                  placeholder="Ej: Matemáticas"
+                  className="w-full p-2 border border-gray-300 rounded-lg"
+                />
+              </div>
             </>
           )}
         </div>
 
-        {/* ÁREA DE PREGUNTAS */}
-        <div className="pt-4">
+        <div className="pt-6 border-t border-gray-100">
+          <h3 className="text-lg font-bold text-gray-800 mb-4">Cuestionario</h3>
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
             SECCIONES_DOCENTE.map((section) => (
               <div key={section}>{renderSection(section)}</div>
@@ -245,27 +309,29 @@ const SurveyBuilder = () => {
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="flex gap-2 items-center border-b pb-2"
+                  className="flex gap-3 items-center border-b border-gray-100 pb-3"
                 >
-                  <span className="font-bold text-gray-400">#{index + 1}</span>
+                  <span className="font-bold text-gray-400 w-6">
+                    #{index + 1}
+                  </span>
                   <input
-                    {...register(`questions.${index}.text`)}
-                    className="flex-1 outline-none"
-                    placeholder="Pregunta..."
+                    {...register(`questions.${index}.text`, { required: true })}
+                    className="flex-1 outline-none border-b border-transparent focus:border-blue-300 transition-colors py-1"
+                    placeholder="Escribe la pregunta..."
                   />
                   <select
                     {...register(`questions.${index}.type`)}
-                    className="text-sm bg-gray-50 rounded p-1"
+                    className="text-sm bg-gray-50 border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
                   >
-                    <option value="ESCALA_1_5">Estrellas</option>
-                    <option value="TEXTO">Texto</option>
+                    <option value="ESCALA_1_5">Estrellas (1-5)</option>
+                    <option value="TEXTO">Texto Libre</option>
                   </select>
                   <button
                     onClick={() => remove(index)}
                     type="button"
-                    className="text-red-400"
+                    className="text-gray-300 hover:text-red-500 transition-colors"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={18} />
                   </button>
                   <input
                     type="hidden"
@@ -279,19 +345,19 @@ const SurveyBuilder = () => {
                 onClick={() =>
                   append({ category: "General", text: "", type: "ESCALA_1_5" })
                 }
-                className="text-blue-600 font-bold flex items-center gap-2 mt-2"
+                className="text-blue-600 font-bold flex items-center gap-2 mt-4 hover:bg-blue-50 p-2 rounded-lg transition-colors w-fit"
               >
-                <Plus size={18} /> Agregar Pregunta
+                <Plus size={18} /> Agregar Nueva Pregunta
               </button>
             </div>
           )}
         </div>
 
-        <div className="flex justify-end pt-6 border-t">
+        <div className="flex justify-end pt-6 border-t border-gray-200">
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold shadow-md transition-all"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-bold shadow-lg shadow-blue-200 transition-all hover:-translate-y-0.5 disabled:bg-gray-400"
           >
             {isSubmitting ? "Guardando..." : "Crear Encuesta"}
           </button>

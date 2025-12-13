@@ -9,20 +9,20 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ArrowLeft, Users, Calendar, Loader2 } from "lucide-react";
+import { ArrowLeft, Users, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
 
 const ResultsView = () => {
   const [surveys, setSurveys] = useState([]);
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Cargar la lista de encuestas al iniciar
+  // 1. Cargar la lista de encuestas
   useEffect(() => {
     const fetchSurveys = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/api/admin/surveys");
+        const res = await api.get("/api/admin/surveys");
         setSurveys(res.data);
       } catch (error) {
         console.error("Error cargando encuestas:", error);
@@ -33,13 +33,11 @@ const ResultsView = () => {
     fetchSurveys();
   }, []);
 
-  // 2. Cargar detalles de una encuesta específica al hacer click
+  // 2. Cargar detalles
   const handleSelectSurvey = async (id) => {
     setLoading(true);
     try {
-      const res = await axios.get(
-        `http://localhost:3000/api/admin/surveys/${id}/results`
-      );
+      const res = await api.get(`/api/admin/surveys/${id}/results`);
       setSelectedSurvey(res.data);
     } catch (error) {
       alert("Error cargando los detalles.");
@@ -56,11 +54,10 @@ const ResultsView = () => {
     );
   }
 
-  // --- VISTA 1: LISTADO DE ENCUESTAS ---
+  // --- VISTA 1: LISTADO ---
   if (!selectedSurvey) {
     return (
       <div className="max-w-6xl mx-auto p-8">
-        {/* BOTÓN VOLVER AL DASHBOARD (NUEVO) */}
         <Link
           to="/admin/dashboard"
           className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 mb-6 font-medium transition-colors"
@@ -73,7 +70,7 @@ const ResultsView = () => {
             Resultados Reales
           </h2>
           <p className="text-gray-500">
-            Selecciona una encuesta de la base de datos para ver sus métricas.
+            Selecciona una encuesta para ver sus métricas.
           </p>
         </div>
 
@@ -111,7 +108,6 @@ const ResultsView = () => {
 
                 <div className="flex items-center gap-2 text-gray-500 text-sm mt-auto pt-3 border-t">
                   <Users size={16} />
-                  {/* response_count viene del backend como string, lo pasamos a int */}
                   <span className="font-semibold">
                     {survey.response_count || 0}
                   </span>{" "}
@@ -125,7 +121,7 @@ const ResultsView = () => {
     );
   }
 
-  // --- VISTA 2: DETALLE (GRÁFICOS) ---
+  // --- VISTA 2: DETALLE ---
   return (
     <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
       <div className="mb-8">
@@ -175,7 +171,6 @@ const ResultsView = () => {
               </h3>
             </div>
 
-            {/* Renderizamos gráfico SOLO si hay datos numéricos */}
             {question.data && question.data.length > 0 ? (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">

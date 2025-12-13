@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+// import { Toaster } from "react-hot-toast"; // <--- LO DEJAMOS COMENTADO POR AHORA
 import ResultsView from "./components/admin/ResultsView";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -9,32 +10,24 @@ import ProtectedRoute from "./components/admin/ProtectedRoute";
 function App() {
   return (
     <BrowserRouter>
+      {/* <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: { background: '#363636', color: '#fff' },
+        }}
+      />
+      */}
+
       <Routes>
-        {/* =======================================================
-            RUTAS PÚBLICAS (Cualquiera puede entrar)
-           ======================================================= */}
-
-        {/* Redirección inicial */}
         <Route path="/" element={<Navigate to="/login" replace />} />
-
-        {/* Login de la Directora */}
         <Route path="/login" element={<AdminLogin />} />
-
-        {/* Vista Pública para Estudiantes (NO debe tener protección) */}
         <Route path="/encuesta/:link" element={<SurveyPublicView />} />
 
-        {/* =======================================================
-            RUTAS PROTEGIDAS (Solo con Token y Sesión Activa)
-            Aquí usamos ProtectedRoute como un "Layout" o envoltorio
-           ======================================================= */}
         <Route element={<ProtectedRoute />}>
-          {/* 1. Panel Principal */}
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-
-          {/* 2. Ver Resultados */}
           <Route path="/admin/resultados" element={<ResultsView />} />
 
-          {/* 3. Crear Encuesta (Con tu diseño personalizado inline) */}
           <Route
             path="/admin/crear"
             element={
@@ -52,7 +45,6 @@ function App() {
             }
           />
         </Route>
-        {/* Fin del bloque protegido */}
       </Routes>
     </BrowserRouter>
   );

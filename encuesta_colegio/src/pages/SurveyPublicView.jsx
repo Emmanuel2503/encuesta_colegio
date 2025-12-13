@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import axios from "axios";
+import api from "../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
 import { CheckCircle, User, BookOpen, Clock, AlertCircle } from "lucide-react";
 
 const SurveyPublicView = () => {
@@ -17,8 +17,9 @@ const SurveyPublicView = () => {
   } = useForm();
 
   useEffect(() => {
-    axios
-      .get(`http://localhost:3000/api/public/surveys/${link}`)
+    // Usamos 'api' en lugar de axios
+    api
+      .get(`/api/public/surveys/${link}`)
       .then((res) => setSurvey(res.data))
       .catch((err) => setError(true))
       .finally(() => setLoading(false));
@@ -47,7 +48,8 @@ const SurveyPublicView = () => {
     }));
 
     try {
-      await axios.post("http://localhost:3000/api/public/submit", {
+      // Usamos 'api' aquí también
+      await api.post("/api/public/submit", {
         survey_id: survey.id,
         answers: formattedAnswers,
         general_comment,
@@ -86,7 +88,7 @@ const SurveyPublicView = () => {
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 font-sans">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        {/* CABECERA AZUL (DISEÑO ORIGINAL) */}
+        {/* CABECERA AZUL */}
         <div className="bg-blue-600 p-8 text-white">
           <h1 className="text-2xl font-bold mb-2">{survey.title}</h1>
           <p className="opacity-90 text-sm mb-6">
