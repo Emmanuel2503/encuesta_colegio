@@ -1,0 +1,8 @@
+# Ignorar dependencias gigantes
+node_modules/
+
+# Ignorar secretos y contraseñas
+.env
+
+# Ignorar logs
+npm-debug.log
