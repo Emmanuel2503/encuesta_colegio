@@ -62,15 +62,34 @@ CREATE TABLE asignaturas (
 );
 
 -- =============================================
--- 2. TABLAS PARA ENCUESTA ESTUDIANTES (Escala 1-5)
+-- 2. TABLA INTERMEDIA DOCENTE-ASIGNATURA (N:M)
+-- =============================================
+CREATE TABLE docente_asignatura (
+    id_docente_asignatura SERIAL PRIMARY KEY,
+    docente_id_docente_asignatura INTEGER NOT NULL,
+    asignatura_id_docente_asignatura INTEGER NOT NULL,
+    periodo_docente_asignatura_id INTEGER NOT NULL,
+    seccion_docente_asignatura VARCHAR(10),
+    horas_semanales INTEGER,
+    fecha_asignacion DATE DEFAULT CURRENT_DATE,
+    activa_docente_asignatura BOOLEAN DEFAULT true,
+
+    CONSTRAINT unico_docente_asignatura_periodo UNIQUE(docente_id_docente_asignatura, asignatura_id_docente_asignatura, periodo_docente_asignatura_id, seccion_docente_asignatura),
+    CONSTRAINT fk_da_docente FOREIGN KEY (docente_id_docente_asignatura) REFERENCES docentes(id_docente) ON DELETE CASCADE,
+    CONSTRAINT fk_da_asignatura FOREIGN KEY (asignatura_id_docente_asignatura) REFERENCES asignaturas(id_asignatura) ON DELETE CASCADE,
+    CONSTRAINT fk_da_periodo FOREIGN KEY (periodo_docente_asignatura_id) REFERENCES periodos_academicos(id_periodo_academico),
+    CONSTRAINT chk_horas_semanales CHECK (horas_semanales > 0 AND horas_semanales <= 40)
+);
+
+-- =============================================
+-- 3. TABLAS PARA ENCUESTA ESTUDIANTES (Escala 1-5)
 -- =============================================
 
 CREATE TABLE encuestas_estudiantes (
     id_encuesta_estudiante SERIAL PRIMARY KEY,
     codigo_encuesta_estudiante VARCHAR(50) UNIQUE NOT NULL,
-    periodo_id INTEGER NOT NULL,
-    asignatura_id INTEGER NOT NULL,
-    docente_evaluado_id INTEGER NOT NULL,
+    periodo_encuesta_estudiante_id INTEGER NOT NULL,
+    docente_asignatura_encuesta_estudiante_id INTEGER NOT NULL,
     seccion_encuesta_estudiante VARCHAR(10) NOT NULL,
     fecha_apertura DATE NOT NULL,
     fecha_cierre DATE NOT NULL,
@@ -80,18 +99,17 @@ CREATE TABLE encuestas_estudiantes (
     
     CONSTRAINT chk_fechas_encuesta CHECK (fecha_apertura <= fecha_cierre),
     CONSTRAINT chk_seccion_encuesta CHECK (char_length(seccion_encuesta_estudiante) BETWEEN 1 AND 10),
-    CONSTRAINT fk_periodo_encuesta_estudiante FOREIGN KEY (periodo_id) REFERENCES periodos_academicos(id_periodo_academico),
-    CONSTRAINT fk_asignatura_encuesta_estudiante FOREIGN KEY (asignatura_id) REFERENCES asignaturas(id_asignatura),
-    CONSTRAINT fk_docente_encuesta_estudiante FOREIGN KEY (docente_evaluado_id) REFERENCES docentes(id_docente)
+    CONSTRAINT fk_periodo_encuesta_estudiante FOREIGN KEY (periodo_encuesta_estudiante_id) REFERENCES periodos_academicos(id_periodo_academico),
+    CONSTRAINT fk_docente_asignatura_encuesta_estudiante FOREIGN KEY (docente_asignatura_encuesta_estudiante_id) REFERENCES docente_asignatura(id_docente_asignatura)
 );
 
--- Preguntas específicas para estudiantes (según imagen: 20 indicadores)
+-- Preguntas específicas para estudiantes (20 indicadores)
 CREATE TABLE preguntas_estudiantes (
     id_pregunta_estudiante SERIAL PRIMARY KEY,
     encuesta_pregunta_estudiante_id INTEGER NOT NULL,
     numero_orden_pregunta_estudiante INTEGER NOT NULL,
     texto_pregunta_estudiante TEXT NOT NULL,
-    categoria VARCHAR(100), -- Ej: 'Presentación', 'Puntualidad', 'Evaluación', 'Metodología'
+    categoria VARCHAR(100), --'Presentación', 'Puntualidad', 'Evaluación', 'Metodología'
     tipo_escala VARCHAR(20) DEFAULT 'LIKERT_5',
 
     CONSTRAINT unico_orden_encuesta UNIQUE (encuesta_pregunta_estudiante_id, numero_orden_pregunta_estudiante),
@@ -99,12 +117,12 @@ CREATE TABLE preguntas_estudiantes (
     CONSTRAINT chk_tipo_escala CHECK (tipo_escala IN ('LIKERT_5'))
 );
 
--- Respuestas de estudiantes (Escala 1-5 con decimales como en la imagen)
+-- Respuestas de estudiantes (Escala 1-5 con decimales)
 CREATE TABLE respuestas_estudiantes (
     id_respuesta_estudiante SERIAL PRIMARY KEY,
     encuesta_respuesta_estudiante_id INTEGER NOT NULL,
     pregunta_respuesta_estudiante_id INTEGER NOT NULL,
-    valor DECIMAL(3,1) NOT NULL, -- Ej: 3.5, 4.8 como en la imagen
+    valor DECIMAL(3,1) NOT NULL, -- 3.5, 4.8
     estudiante_hash VARCHAR(100), -- Hash para anonimato pero control de único voto
     fecha_respuesta TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     ip_address VARCHAR(45),
@@ -117,7 +135,7 @@ CREATE TABLE respuestas_estudiantes (
 );
 
 -- =============================================
--- 3. TABLAS PARA EVALUACIÓN DOCENTE-DOCENTE (SET/SEP/NSE)
+-- 4. TABLAS PARA EVALUACIÓN DOCENTE-DOCENTE (SET/SEP/NSE)
 -- =============================================
 
 CREATE TABLE evaluaciones_docente_docente (
@@ -189,7 +207,7 @@ CREATE TABLE respuestas_docentes (
 );
 
 -- =============================================
--- 4. TABLAS DE RESULTADOS Y REPORTES
+-- 5. TABLAS DE RESULTADOS Y REPORTES
 -- =============================================
 
 -- Resultados agregados para estudiantes (para gráficas rápidas)
@@ -223,3 +241,32 @@ CREATE TABLE resultados_docentes (
     CONSTRAINT fk_evaluacion_resultado_docente FOREIGN KEY (evaluacion_resultado_docente_id) REFERENCES evaluaciones_docente_docente(id_evaluacion_docente),
     CONSTRAINT fk_seccion_resultado_docente FOREIGN KEY (seccion_id) REFERENCES secciones_evaluacion_docente(id_seccion_evaluacion_docente)
 );
+
+-- =============================================
+-- 6. TABLA DE RESULTADOS HISTÓRICOS (Para análisis temporal)
+-- =============================================
+CREATE TABLE resultados_historicos (
+    id_resultado_historico SERIAL PRIMARY KEY,
+    periodo_resultado_historico_id INTEGER NOT NULL,
+    docente_resultado_historico_id INTEGER NOT NULL,
+    asignatura_resultado_historico_id INTEGER NOT NULL,
+    promedio_general DECIMAL(4,2),
+    fecha_generacion DATE DEFAULT CURRENT_DATE,
+    
+    CONSTRAINT fk_historico_periodo FOREIGN KEY (periodo_resultado_historico_id) REFERENCES periodos_academicos(id_periodo_academico),
+    CONSTRAINT fk_historico_docente FOREIGN KEY (docente_resultado_historico_id) REFERENCES docentes(id_docente),
+    CONSTRAINT fk_historico_asignatura FOREIGN KEY (asignatura_resultado_historico_id) REFERENCES asignaturas(id_asignatura),
+    CONSTRAINT unico_historico UNIQUE(periodo_resultado_historico_id, docente_resultado_historico_id, asignatura_resultado_historico_id)
+);
+
+-- INDEXES PARA MEJORAR RENDIMIENTO DE CONSULTAS:
+CREATE INDEX idx_encuestas_periodo ON encuestas_estudiantes(periodo_encuesta_estudiante_id);
+CREATE INDEX idx_encuestas_docente_asignatura ON encuestas_estudiantes(docente_asignatura_encuesta_estudiante_id);
+CREATE INDEX idx_respuestas_encuesta ON respuestas_estudiantes(encuesta_respuesta_estudiante_id);
+CREATE INDEX idx_respuestas_pregunta ON respuestas_estudiantes(pregunta_respuesta_estudiante_id);
+CREATE INDEX idx_docente_asignatura_docente ON docente_asignatura(docente_id_docente_asignatura);
+CREATE INDEX idx_docente_asignatura_asignatura ON docente_asignatura(asignatura_id_docente_asignatura);
+CREATE INDEX idx_evaluaciones_docente ON evaluaciones_docente_docente(docente_evaluado_id);
+CREATE INDEX idx_historicos_docente ON resultados_historicos(docente_resultado_historico_id);
+CREATE INDEX idx_historicos_periodo ON resultados_historicos(periodo_resultado_historico_id);
+CREATE INDEX idx_historicos_asignatura ON resultados_historicos(asignatura_resultado_historico_id);
