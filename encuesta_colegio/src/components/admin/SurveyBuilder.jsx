@@ -2,8 +2,8 @@ import { useForm, useFieldArray } from "react-hook-form";
 import { Plus, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import toast from "react-hot-toast"; // Para errores ligeros
-import Swal from "sweetalert2"; // <--- Para el ÉXITO ROTUNDO
+import toast from "react-hot-toast";
+import Swal from "sweetalert2";
 import api from "../../api/axiosConfig";
 
 const SECCIONES_DOCENTE = [
@@ -17,6 +17,8 @@ const SurveyBuilder = () => {
   const location = useLocation();
   const cloneData = location.state?.cloneData;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [assignments, setAssignments] = useState([]); // List of Teacher-Subject pairs
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
 
   const {
     register,
@@ -30,6 +32,7 @@ const SurveyBuilder = () => {
       title: "",
       target_audience: "ESTUDIANTE_A_DOCENTE",
       questions: [],
+      teacher_assignment_id: "", // New Field for Professional Schema
     },
   });
 
@@ -39,14 +42,27 @@ const SurveyBuilder = () => {
     name: "questions",
   });
 
+  // Fetch Assignments on Mount
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      try {
+        const res = await api.get("/api/setup/assignments");
+        setAssignments(res.data);
+      } catch (error) {
+        console.error("Error loading assignments", error);
+        toast.error("No se pudieron cargar los profesores/materias");
+      } finally {
+        setIsLoadingAssignments(false);
+      }
+    };
+    fetchAssignments();
+  }, []);
+
   useEffect(() => {
     if (cloneData) {
       setValue("title", `${cloneData.title} (Copia)`);
       setValue("target_audience", cloneData.target_audience);
       setValue("description", cloneData.description || "");
-      if (cloneData.evaluated_name)
-        setValue("evaluated_name", cloneData.evaluated_name);
-      if (cloneData.subject) setValue("subject", cloneData.subject);
 
       const formattedQuestions = cloneData.questions_analysis.map((q) => ({
         text: q.question_text,
@@ -57,6 +73,7 @@ const SurveyBuilder = () => {
       replace(formattedQuestions);
       toast.success("Plantilla cargada", { icon: "📋" });
     } else {
+      // Default Questions Logic
       if (targetAudience === "DOCENTE_A_DOCENTE") {
         replace([
           {
@@ -89,9 +106,7 @@ const SurveyBuilder = () => {
     }
   }, [targetAudience, replace, setValue, cloneData]);
 
-  // --- NUEVA LÓGICA DE ENVÍO CON CONFIRMACIÓN MODAL ---
   const onSubmit = async (data) => {
-    // 1. Validar preguntas
     if (data.questions.length === 0) {
       toast.error("¡Agrega al menos una pregunta!", { duration: 3000 });
       return;
@@ -101,21 +116,24 @@ const SurveyBuilder = () => {
     const loadingToast = toast.loading("Guardando encuesta...");
 
     try {
-      // 2. Guardar en Backend
-      const res = await api.post("/api/surveys", {
-        ...data,
-        expiration_date: new Date(data.expiration_date).toISOString(),
-      });
+      // Logic for Professional Schema:
+      // If user selected an assignment (ID), we auto-fill the legacy fields for backup
+      let payload = { ...data, expiration_date: new Date(data.expiration_date).toISOString() };
 
-      // 3. Limpiar estado de carga
+      if (data.teacher_assignment_id) {
+        const selected = assignments.find(a => a.id.toString() === data.teacher_assignment_id.toString());
+        if (selected) {
+          payload.evaluated_name = `${selected.first_name} ${selected.last_name}`;
+          payload.subject = `${selected.subject_name} (${selected.section_name})`;
+        }
+      }
+
+      const res = await api.post("/api/surveys", payload);
+
       toast.dismiss(loadingToast);
-
-      // 4. Copiar link automáticamente
       const link = `${window.location.origin}/encuesta/${res.data.link}`;
       navigator.clipboard.writeText(link);
 
-      // 5. MOSTRAR MODAL DE ÉXITO (SweetAlert2)
-      // Esto detiene la navegación hasta que el usuario hace clic en "OK"
       await Swal.fire({
         title: "¡Encuesta Creada!",
         html: `
@@ -127,23 +145,19 @@ const SurveyBuilder = () => {
         `,
         icon: "success",
         confirmButtonText: "Ir al Panel de Control",
-        confirmButtonColor: "#2563eb", // Azul bonito
-        allowOutsideClick: false, // Obliga a dar clic en el botón
+        confirmButtonColor: "#2563eb",
+        allowOutsideClick: false,
       });
 
-      // 6. Redirigir SOLO después de que cerraron el modal
       navigate("/admin/dashboard");
     } catch (e) {
       console.error(e);
       toast.dismiss(loadingToast);
-
-      // Modal de Error si falla
       Swal.fire({
         title: "Error",
         text: "No se pudo guardar la encuesta. Intenta nuevamente.",
         icon: "error",
       });
-
       setIsSubmitting(false);
     }
   };
@@ -203,7 +217,6 @@ const SurveyBuilder = () => {
     <div className="max-w-4xl mx-auto p-8 bg-white shadow-sm border border-gray-200 rounded-xl mt-6 mb-12">
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Nueva Encuesta</h2>
 
-      {/* Formulario con validador de errores visual */}
       <form
         onSubmit={handleSubmit(onSubmit, (errors) => {
           if (errors.title) toast.error("Falta el título");
@@ -249,49 +262,66 @@ const SurveyBuilder = () => {
             />
           </div>
 
+          {/* SELECTOR DE PROFESORES/MATERIAS (NUEVO) */}
+          <div className="col-span-2">
+            <label className="block text-sm font-bold text-gray-700 mb-1">
+              Seleccionar Docente y Materia (Oficial)
+            </label>
+            {isLoadingAssignments ? (
+              <p className="text-sm text-gray-400">Cargando lista oficial...</p>
+            ) : (
+              <select
+                {...register("teacher_assignment_id")}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none"
+              >
+                <option value="">-- Selección Manual (Opcional) --</option>
+                {assignments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.last_name}, {a.first_name} - {a.subject_name} ({a.section_name})
+                  </option>
+                ))}
+              </select>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              * Si seleccionas una opción de la lista, los campos de nombre y materia se llenarán automáticamente.
+            </p>
+          </div>
+
+          {/* CAMPOS MANUALES (FALLBACK) */}
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
-            <>
-              <div className="col-span-2 md:col-span-1">
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Nombre del Docente
-                </label>
-                <input
-                  {...register("evaluated_name")}
-                  placeholder="Nombre y Apellido"
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-              <div className="col-span-2 md:col-span-1">
-                <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Grado / Sección
-                </label>
-                <input
-                  {...register("subject")}
-                  placeholder="Ej: 4to Grado A"
-                  className="w-full p-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-            </>
+            <div className="col-span-2 md:col-span-1">
+              <label className="block text-sm font-bold text-gray-700 mb-1">
+                Nombre del Docente (Manual)
+              </label>
+              <input
+                {...register("evaluated_name")}
+                placeholder="Nombre y Apellido"
+                className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+              />
+            </div>
           ) : (
+            // ESTUDIANTE A DOCENTE
             <>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Nombre del Profesor
+                  Nombre Prof. (Manual)
                 </label>
                 <input
                   {...register("evaluated_name")}
-                  placeholder="Nombre del Profesor"
-                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  placeholder="Se llena auto si seleccionas arriba"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50"
+                // Removed readOnly
                 />
               </div>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Materia
+                  Materia (Manual)
                 </label>
                 <input
                   {...register("subject")}
-                  placeholder="Ej: Matemáticas"
-                  className="w-full p-2 border border-gray-300 rounded-lg"
+                  placeholder="Se llena auto si seleccionas arriba"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50"
+                // Removed readOnly
                 />
               </div>
             </>

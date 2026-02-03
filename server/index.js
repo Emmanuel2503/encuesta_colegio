@@ -8,7 +8,66 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// --- RUTAS DE ADMINISTRACIÓN ---
+// --- PROFESSIONAL SCHEMA ENDPOINTS (SCHOOL MANAGEMENT) ---
+
+// 1. Get Teachers
+app.get("/api/setup/teachers", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM teachers ORDER BY last_name");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching teachers" });
+  }
+});
+
+// 2. Create Teacher
+app.post("/api/setup/teachers", async (req, res) => {
+  try {
+    const { national_id, first_name, last_name, email } = req.body;
+    const result = await pool.query(
+      "INSERT INTO teachers (national_id, first_name, last_name, email) VALUES ($1, $2, $3, $4) RETURNING *",
+      [national_id, first_name, last_name, email]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error creating teacher" });
+  }
+});
+
+// 3. Get Subjects
+app.get("/api/setup/subjects", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM subjects ORDER BY name");
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching subjects" });
+  }
+});
+
+// 4. Get Active Assignments (To populate dropdowns)
+app.get("/api/setup/assignments", async (req, res) => {
+  try {
+    // Returns detailed info: "Math 101 - Section A (Prof. Perez)"
+    const query = `
+      SELECT ta.id, s.name as subject_name, t.last_name, t.first_name, ta.section_name
+      FROM teacher_assignments ta
+      JOIN teachers t ON ta.teacher_id = t.id
+      JOIN subjects s ON ta.subject_id = s.id
+      JOIN academic_periods ap ON ta.period_id = ap.id
+      WHERE ap.is_active = true
+    `;
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error fetching assignments" });
+  }
+});
+
+// --- SURVEY MANAGEMENT (CORE) ---
 
 // 1. Crear Encuesta (Admin)
 app.post("/api/surveys", async (req, res) => {
@@ -22,13 +81,16 @@ app.post("/api/surveys", async (req, res) => {
       subject,
       expiration_date,
       questions,
+      teacher_assignment_id
     } = req.body;
 
     const access_link = uuidv4().split("-")[0];
 
     await client.query("BEGIN");
 
-    // 1. Insertar Cabecera
+    // 1. Insert Header
+    // We allow explicit text values for evaluated_name/subject even if using professional schema
+    // This supports "Hybrid Mode" (Manual text entry OR Professional ID)
     const surveyRes = await client.query(
       `INSERT INTO surveys (title, description, target_audience, evaluated_name, subject, access_link, expiration_date)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
@@ -44,7 +106,7 @@ app.post("/api/surveys", async (req, res) => {
     );
     const surveyId = surveyRes.rows[0].id;
 
-    // 2. Insertar Preguntas (CORREGIDO: Ahora incluye 'category')
+    // 2. Insert Questions
     const questionQuery = `
       INSERT INTO questions (survey_id, question_text, question_type, order_index, category) 
       VALUES ($1, $2, $3, $4, $5)
@@ -52,7 +114,6 @@ app.post("/api/surveys", async (req, res) => {
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      // Pasamos q.category || null por si es una encuesta vieja que no tiene categorías
       await client.query(questionQuery, [
         surveyId,
         q.text,
@@ -90,7 +151,7 @@ app.post("/api/admin/login", async (req, res) => {
   }
 });
 
-// --- RUTAS PÚBLICAS (ESTUDIANTE / DOCENTE) ---
+// --- PUBLIC ROUTES ---
 
 // 3. OBTENER ENCUESTA POR LINK
 app.get("/api/public/surveys/:link", async (req, res) => {
@@ -116,7 +177,7 @@ app.get("/api/public/surveys/:link", async (req, res) => {
         .json({ error: "Esta encuesta ha finalizado", expired: true });
     }
 
-    // c. Buscar preguntas (Incluyendo category)
+    // c. Buscar preguntas
     const questionsRes = await pool.query(
       `SELECT * FROM questions WHERE survey_id = $1 ORDER BY order_index ASC`,
       [survey.id]
@@ -129,23 +190,23 @@ app.get("/api/public/surveys/:link", async (req, res) => {
   }
 });
 
-// 4. GUARDAR RESPUESTAS (SUBMIT) - ACTUALIZADO
+// 4. GUARDAR RESPUESTAS (SUBMIT)
 app.post("/api/public/submit", async (req, res) => {
   const client = await pool.connect();
   try {
-    // Recibimos ahora 'general_comment'
-    const { survey_id, answers, general_comment } = req.body;
+    // Now receiving teacher_assignment_id if available form frontend
+    const { survey_id, answers, general_comment, teacher_assignment_id } = req.body;
 
     await client.query("BEGIN");
 
-    // a. Crear Submission (Incluyendo el comentario)
+    // a. Create Submission
     const subRes = await client.query(
-      `INSERT INTO submissions (survey_id, general_comment) VALUES ($1, $2) RETURNING id`,
-      [survey_id, general_comment || null]
+      `INSERT INTO submissions (survey_id, general_comment, teacher_assignment_id) VALUES ($1, $2, $3) RETURNING id`,
+      [survey_id, general_comment || null, teacher_assignment_id || null]
     );
     const submissionId = subRes.rows[0].id;
 
-    // b. Guardar Respuestas (Igual que antes)
+    // b. Save Answers
     const answerQuery = `
       INSERT INTO answers (submission_id, question_id, answer_value, answer_text)
       VALUES ($1, $2, $3, $4)
@@ -233,7 +294,6 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
       // Lógica para ESTRELLAS (1-5)
       if (q.question_type === "ESCALA_1_5") {
         chartData = [1, 2, 3, 4, 5].map((star) => {
-          // parseFloat asegura comparar números correctamente
           const found = relevantStats.find(
             (s) => parseFloat(s.answer_value) === star
           );
@@ -242,8 +302,6 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
             value: found ? parseInt(found.count) : 0,
           };
         });
-
-        // Lógica NUEVA para DOCENTES (1.0, 0.5, 0.0)
       } else if (q.question_type === "ESCALA_DOCENTE") {
         chartData = [
           { val: 1, label: "SET (1)" },
@@ -255,8 +313,6 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
           );
           return { name: opt.label, value: found ? parseInt(found.count) : 0 };
         });
-
-        // Lógica para Selección Múltiple
       } else if (q.question_type === "SELECCION_MULTIPLE") {
         chartData = relevantStats.map((s) => ({
           name: s.answer_text,
@@ -291,15 +347,11 @@ app.delete("/api/surveys/:id", async (req, res) => {
   }
 });
 
-// 8. REINICIAR RESULTADOS (Limpiar respuestas de una encuesta)
+// 8. REINICIAR RESULTADOS
 app.delete("/api/surveys/:id/reset", async (req, res) => {
   try {
     const { id } = req.params;
-
-    // Solo borramos las 'submissions' de esta encuesta.
-    // Al borrar la submission, PostgreSQL borra las 'answers' automáticamente (CASCADE)
     await pool.query("DELETE FROM submissions WHERE survey_id = $1", [id]);
-
     res.json({ message: "Resultados reiniciados a cero." });
   } catch (error) {
     console.error(error);
