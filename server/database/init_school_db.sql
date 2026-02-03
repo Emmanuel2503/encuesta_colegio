@@ -120,4 +120,4 @@ CREATE TABLE IF NOT EXISTS answers (
 );
 
 -- 5. INITIAL SEED DATA (Optional - Admin PIN)
-INSERT INTO admin_settings (pin_code) VALUES ('1234') ON CONFLICT DO NOTHING;
+INSERT INTO admin_settings (pin_code) VALUES ('12345') ON CONFLICT DO NOTHING;
