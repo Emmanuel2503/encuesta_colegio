@@ -28,11 +28,11 @@ const SurveyPublicView = () => {
   // Agrupar preguntas
   const groupedQuestions = survey
     ? survey.questions.reduce((acc, q) => {
-        const cat = q.category || "Cuestionario";
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(q);
-        return acc;
-      }, {})
+      const cat = q.category || "Cuestionario";
+      if (!acc[cat]) acc[cat] = [];
+      acc[cat].push(q);
+      return acc;
+    }, {})
     : {};
 
   const onSubmit = async (data) => {
@@ -114,6 +114,44 @@ const SurveyPublicView = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-8">
+          {/* LEYENDA TIPO ESTRELLAS (1-5) */}
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 text-sm text-gray-700">
+            <h4 className="font-bold text-blue-800 mb-2">
+              Guía de Puntuación (Escala 1 al 5)
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <div className="flex items-center gap-2">
+                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                  1
+                </span>
+                <span>Totalmente en Desacuerdo</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                  2
+                </span>
+                <span>En Desacuerdo</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                  3
+                </span>
+                <span>Neutral</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                  4
+                </span>
+                <span>De Acuerdo</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                  5
+                </span>
+                <span>Totalmente de Acuerdo</span>
+              </div>
+            </div>
+          </div>
           {Object.entries(groupedQuestions).map(([category, questions]) => (
             <div key={category}>
               {/* TÍTULO DE SECCIÓN ELEGANTE */}

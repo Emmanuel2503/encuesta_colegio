@@ -2,6 +2,9 @@ import React, { useState, useEffect } from "react";
 import {
   BarChart,
   Bar,
+  PieChart,
+  Pie,
+  Legend,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -15,6 +18,8 @@ import {
   Loader2,
   FileText,
   FileSpreadsheet,
+  PieChart as PieChartIcon,
+  BarChart as BarChartIcon,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
@@ -26,6 +31,7 @@ const ResultsView = () => {
   const [surveys, setSurveys] = useState([]);
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chartType, setChartType] = useState("bar"); // "bar" | "pie"
 
   // 1. Cargar la lista de encuestas
   useEffect(() => {
@@ -118,18 +124,18 @@ const ResultsView = () => {
       const tableRows =
         q.data && q.data.length > 0
           ? q.data.map((item) => {
-              const raw = (item.name || "").toString();
-              const key = raw.replace("⭐", "").trim();
+            const raw = (item.name || "").toString();
+            const key = raw.replace("⭐", "").trim();
 
-              const label =
-                optionMap[key] || optionMap[key.toUpperCase()] || raw;
-              const cleanKey = key.toUpperCase();
-              if (globalTotals.hasOwnProperty(cleanKey)) {
-                globalTotals[cleanKey] += Number(item.value);
-              }
+            const label =
+              optionMap[key] || optionMap[key.toUpperCase()] || raw;
+            const cleanKey = key.toUpperCase();
+            if (globalTotals.hasOwnProperty(cleanKey)) {
+              globalTotals[cleanKey] += Number(item.value);
+            }
 
-              return [label, item.value.toString()];
-            })
+            return [label, item.value.toString()];
+          })
           : [["Sin datos", "0"]];
 
       // --- AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL ---
@@ -385,8 +391,32 @@ const ResultsView = () => {
             </p>
           </div>
 
-          {/* --- BLOQUE DE BOTONES DE EXPORTACIÓN --- */}
-          <div className="flex gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* --- TOGGLE TIPO DE GRÁFICO --- */}
+            <div className="bg-white p-1 rounded-lg border flex shadow-sm mr-2">
+              <button
+                onClick={() => setChartType("bar")}
+                className={`p-2 rounded-md transition-colors ${chartType === "bar"
+                  ? "bg-blue-100 text-blue-600"
+                  : "text-gray-400 hover:text-gray-600"
+                  }`}
+                title="Ver gráfico de barras"
+              >
+                <BarChartIcon size={20} />
+              </button>
+              <button
+                onClick={() => setChartType("pie")}
+                className={`p-2 rounded-md transition-colors ${chartType === "pie"
+                  ? "bg-blue-100 text-blue-600"
+                  : "text-gray-400 hover:text-gray-600"
+                  }`}
+                title="Ver gráfico de torta"
+              >
+                <PieChartIcon size={20} />
+              </button>
+            </div>
+
+            {/* --- BLOQUE DE BOTONES DE EXPORTACIÓN --- */}
             <button
               onClick={generateExcel}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm font-medium"
@@ -400,7 +430,6 @@ const ResultsView = () => {
               <FileText size={18} /> PDF
             </button>
           </div>
-          {/* --- FIN BLOQUE --- */}
         </div>
 
         {/* Bloque de Muestras (Movido un poco para acomodar botones, o puedes dejarlo al lado) */}
@@ -415,6 +444,35 @@ const ResultsView = () => {
             <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">
               Muestras
             </span>
+          </div>
+        </div>
+      </div>
+
+      {/* LEYENDA PARA LA VISTA DE RESULTADOS */}
+      <div className="mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+        <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+          Leyenda de Escala (1-5)
+        </h4>
+        <div className="flex flex-wrap gap-4 text-sm text-gray-600">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-red-400"></span>
+            <b>1:</b> Totalmente en Desacuerdo
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+            <b>2:</b> En Desacuerdo
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+            <b>3:</b> Neutral
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+            <b>4:</b> De Acuerdo
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500"></span>
+            <b>5:</b> Totalmente de Acuerdo
           </div>
         </div>
       </div>
@@ -437,25 +495,50 @@ const ResultsView = () => {
             {question.data && question.data.length > 0 ? (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={question.data}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <YAxis axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{ fill: "#f3f4f6" }} />
-                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                      {question.data.map((entry, i) => (
-                        <Cell
-                          key={`cell-${i}`}
-                          fill={i >= 3 ? "#3b82f6" : "#9ca3af"}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
+                  {chartType === "bar" ? (
+                    <BarChart data={question.data}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis
+                        dataKey="name"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{ fill: "#f3f4f6" }} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {question.data.map((entry, i) => (
+                          <Cell
+                            key={`cell-${i}`}
+                            fill={i >= 3 ? "#3b82f6" : "#9ca3af"}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  ) : (
+                    <PieChart>
+                      <Pie
+                        data={question.data}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label={({ name, percent }) =>
+                          `${name} ${(percent * 100).toFixed(0)}%`
+                        }
+                      >
+                        {question.data.map((entry, i) => (
+                          <Cell
+                            key={`cell-${i}`}
+                            fill={i >= 3 ? "#3b82f6" : "#9ca3af"}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  )}
                 </ResponsiveContainer>
               </div>
             ) : (
