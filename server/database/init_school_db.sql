@@ -1,19 +1,19 @@
 -- =============================================
--- SCHOOL SURVEY SYSTEM DATABASE INITIALIZATION
+-- INICIALIZACIÓN DE LA BASE DE DATOS DEL SISTEMA DE ENCUESTAS ESCOLARES
 -- =============================================
 
--- 1. ADMIN SETTINGS
+-- 1. CONFIGURACIÓN DE ADMINISTRADOR
 CREATE TABLE IF NOT EXISTS admin_settings (
     id SERIAL PRIMARY KEY,
     pin_code VARCHAR(50) NOT NULL
 );
 
--- 2. ACADEMIC MANAGEMENT TABLES
+-- 2. TABLAS DE GESTIÓN ACADÉMICA
 
--- Academic Periods (e.g., "2024-2025 Term 1")
+-- Periodos Académicos (ej., "2024-2025 Term 1")
 CREATE TABLE IF NOT EXISTS academic_periods (
     id SERIAL PRIMARY KEY,
-    name VARCHAR(100) NOT NULL, -- e.g., "Year 2024 - Term 1"
+    name VARCHAR(100) NOT NULL, -- ej., "Año 2024 - Periodo 1"
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     is_active BOOLEAN DEFAULT false,
@@ -21,10 +21,10 @@ CREATE TABLE IF NOT EXISTS academic_periods (
     CONSTRAINT chk_dates CHECK (start_date < end_date)
 );
 
--- Teachers / Docentes
+-- Docentes
 CREATE TABLE IF NOT EXISTS teachers (
     id SERIAL PRIMARY KEY,
-    national_id VARCHAR(20) UNIQUE NOT NULL, -- Cedula
+    national_id VARCHAR(20) UNIQUE NOT NULL, -- Cédula
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     email VARCHAR(100),
@@ -32,23 +32,23 @@ CREATE TABLE IF NOT EXISTS teachers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Subjects / Asignaturas
+-- Asignaturas
 CREATE TABLE IF NOT EXISTS subjects (
     id SERIAL PRIMARY KEY,
     code VARCHAR(20) UNIQUE NOT NULL,
     name VARCHAR(150) NOT NULL,
-    educational_level VARCHAR(50) NOT NULL, -- 'High School', 'Middle School'
+    educational_level VARCHAR(50) NOT NULL, -- 'Secundaria', 'Media'
     is_active BOOLEAN DEFAULT true
 );
 
--- Teacher Assignments (Who teaches what and when)
--- Connects a Teacher to a Subject in a specific Period
+-- Asignaciones de Docentes (Quién enseña qué y cuándo)
+-- Conecta un Docente a una Asignatura en un Periodo específico
 CREATE TABLE IF NOT EXISTS teacher_assignments (
     id SERIAL PRIMARY KEY,
     teacher_id INTEGER NOT NULL,
     subject_id INTEGER NOT NULL,
     period_id INTEGER NOT NULL,
-    section_name VARCHAR(10), -- e.g., "Section A"
+    section_name VARCHAR(10), -- ej., "Sección A"
     
     CONSTRAINT fk_assignment_teacher FOREIGN KEY (teacher_id) REFERENCES teachers(id),
     CONSTRAINT fk_assignment_subject FOREIGN KEY (subject_id) REFERENCES subjects(id),
@@ -56,48 +56,52 @@ CREATE TABLE IF NOT EXISTS teacher_assignments (
     CONSTRAINT unique_assignment UNIQUE (teacher_id, subject_id, period_id, section_name)
 );
 
--- 3. SURVEY CORE TABLES
+-- 3. TABLAS PRINCIPALES DE ENCUESTAS
 
--- Surveys (The definition of a form)
+-- Encuestas (La definición de un formulario)
 CREATE TABLE IF NOT EXISTS surveys (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
     description TEXT,
-    target_audience VARCHAR(50) NOT NULL, -- 'STUDENT_TO_TEACHER', 'TEACHER_TO_TEACHER'
+    target_audience VARCHAR(50) NOT NULL, -- 'ESTUDIANTE_A_DOCENTE', 'DOCENTE_A_DOCENTE'
     access_link VARCHAR(255) UNIQUE NOT NULL,
     expiration_date TIMESTAMP NOT NULL,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     
-    -- Optional: If a survey implies a specific subject/teacher context globally (simplified mode)
-    -- But ideally, the context is in the Submission. 
-    -- We keep these nullable for backward compatibility with your current code
+    -- Opcional: Si una encuesta implica un contexto específico de asignatura/docente globalmente (modo simplificado)
+    -- Pero idealmente, el contexto está en el Envío (Submission). 
+    -- Mantenemos estos como nulos para compatibilidad con tu código actual
     evaluated_name VARCHAR(150), 
     subject VARCHAR(100) 
 );
 
--- Questions associated with a Survey
+-- Preguntas asociadas con una Encuesta
 CREATE TABLE IF NOT EXISTS questions (
     id SERIAL PRIMARY KEY,
     survey_id UUID NOT NULL,
     question_text TEXT NOT NULL,
     question_type VARCHAR(50) NOT NULL, -- 'RATING_1_5', 'TEXT', 'MULTIPLE_CHOICE'
     order_index INTEGER NOT NULL,
-    category VARCHAR(100), -- e.g., 'Pedagogy', 'Punctuality'
+    category VARCHAR(100), -- ej., 'Pedagogía', 'Puntualidad'
+    help_text TEXT, -- Texto de ayuda opcional para la pregunta
+
+    -- MIGRATION: 
+    -- ALTER TABLE questions ADD COLUMN IF NOT EXISTS help_text TEXT;
     
     CONSTRAINT fk_question_survey FOREIGN KEY (survey_id) REFERENCES surveys(id) ON DELETE CASCADE,
     CONSTRAINT unique_order_per_survey UNIQUE (survey_id, order_index)
 );
 
--- 4. RESPONSES & SUBMISSIONS
+-- 4. RESPUESTAS Y ENVÍOS
 
--- A Submission represents one user filling out one survey
+-- Un Envío representa a un usuario completando una encuesta
 CREATE TABLE IF NOT EXISTS submissions (
     id SERIAL PRIMARY KEY,
     survey_id UUID NOT NULL,
     
-    -- Contextual links for Professional Reporting
-    -- When a student submits, we link it to the specific Teacher Assignment being evaluated
+    -- Enlaces contextuales para Informes Profesionales
+    -- Cuando un estudiante envía, lo vinculamos a la Asignación Docente específica que está evaluando
     teacher_assignment_id INTEGER, 
     
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -107,17 +111,17 @@ CREATE TABLE IF NOT EXISTS submissions (
     CONSTRAINT fk_submission_assignment FOREIGN KEY (teacher_assignment_id) REFERENCES teacher_assignments(id)
 );
 
--- Individual Answers to Questions
+-- Respuestas Individuales a Preguntas
 CREATE TABLE IF NOT EXISTS answers (
     id SERIAL PRIMARY KEY,
     submission_id INTEGER NOT NULL,
     question_id INTEGER NOT NULL,
-    answer_value NUMERIC(5, 2), -- Numeric value (e.g., 5 stars)
-    answer_text TEXT,           -- Text value if open question
+    answer_value NUMERIC(5, 2), -- Valor numérico (ej., 5 estrellas)
+    answer_text TEXT,           -- Valor de texto si es pregunta abierta
     
     CONSTRAINT fk_answer_submission FOREIGN KEY (submission_id) REFERENCES submissions(id) ON DELETE CASCADE,
     CONSTRAINT fk_answer_question FOREIGN KEY (question_id) REFERENCES questions(id)
 );
 
--- 5. INITIAL SEED DATA (Optional - Admin PIN)
+-- 5. DATOS SEMILLA INICIALES (Opcional - PIN de Admin)
 INSERT INTO admin_settings (pin_code) VALUES ('12345') ON CONFLICT DO NOTHING;

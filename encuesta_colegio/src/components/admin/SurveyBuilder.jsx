@@ -339,19 +339,26 @@ const SurveyBuilder = () => {
               {fields.map((field, index) => (
                 <div
                   key={field.id}
-                  className="flex gap-3 items-center border-b border-gray-100 pb-3"
+                  className="flex gap-3 items-start border-b border-gray-100 pb-3"
                 >
-                  <span className="font-bold text-gray-400 w-6">
+                  <span className="font-bold text-gray-400 w-6 mt-2">
                     #{index + 1}
                   </span>
-                  <input
-                    {...register(`questions.${index}.text`, { required: true })}
-                    className="flex-1 outline-none border-b border-transparent focus:border-blue-300 transition-colors py-1"
-                    placeholder="Escribe la pregunta..."
-                  />
+                  <div className="flex-1 space-y-2">
+                    <input
+                      {...register(`questions.${index}.text`, { required: true })}
+                      className="w-full outline-none border-b border-gray-300 focus:border-blue-300 transition-colors py-1"
+                      placeholder="Escribe la pregunta..."
+                    />
+                    <input
+                      {...register(`questions.${index}.help_text`)}
+                      className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none"
+                      placeholder="Texto de ayuda (Opcional) - Aparecerá como tooltip para el estudiante"
+                    />
+                  </div>
                   <select
                     {...register(`questions.${index}.type`)}
-                    className="text-sm bg-gray-50 border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-100 outline-none"
+                    className="text-sm bg-gray-50 border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-100 outline-none mt-1"
                   >
                     <option value="ESCALA_1_5">Estrellas (1-5)</option>
                     <option value="TEXTO">Texto Libre</option>
@@ -359,7 +366,7 @@ const SurveyBuilder = () => {
                   <button
                     onClick={() => remove(index)}
                     type="button"
-                    className="text-gray-300 hover:text-red-500 transition-colors"
+                    className="text-gray-300 hover:text-red-500 transition-colors mt-2"
                   >
                     <Trash2 size={18} />
                   </button>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import api from "../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
-import { CheckCircle, User, BookOpen, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle, User, BookOpen, Clock, AlertCircle, Info } from "lucide-react";
 
 const SurveyPublicView = () => {
   const { link } = useParams();
@@ -162,9 +162,20 @@ const SurveyPublicView = () => {
               <div className="space-y-6">
                 {questions.map((q, idx) => (
                   <div key={q.id}>
-                    <p className="text-gray-800 font-medium mb-3 text-sm md:text-base">
-                      {q.question_text} <span className="text-red-400">*</span>
-                    </p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <p className="text-gray-800 font-medium text-sm md:text-base">
+                        {q.question_text} <span className="text-red-400">*</span>
+                      </p>
+                      {q.help_text && (
+                        <div className="group relative">
+                          <Info size={16} className="text-blue-400 cursor-help" />
+                          <div className="hidden group-hover:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 bg-gray-800 text-white text-xs p-2 rounded shadow-lg z-10 pointer-events-none">
+                            {q.help_text}
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
                     {/* OPCIONES TIPO DOCENTE (SET/SEP/NSE) */}
                     {q.question_type === "ESCALA_DOCENTE" && (

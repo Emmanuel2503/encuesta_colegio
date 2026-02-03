@@ -108,8 +108,8 @@ app.post("/api/surveys", async (req, res) => {
 
     // 2. Insert Questions
     const questionQuery = `
-      INSERT INTO questions (survey_id, question_text, question_type, order_index, category) 
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
+      VALUES ($1, $2, $3, $4, $5, $6)
     `;
 
     for (let i = 0; i < questions.length; i++) {
@@ -120,6 +120,7 @@ app.post("/api/surveys", async (req, res) => {
         q.type,
         i,
         q.category || null,
+        q.help_text || null, // Guardamos el texto de ayuda
       ]);
     }
 
