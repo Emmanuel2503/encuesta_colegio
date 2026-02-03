@@ -9,9 +9,18 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
-import { ArrowLeft, Users, Loader2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Users,
+  Loader2,
+  FileText,
+  FileSpreadsheet,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable"; // <---orm "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 const ResultsView = () => {
   const [surveys, setSurveys] = useState([]);
@@ -44,6 +53,239 @@ const ResultsView = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  //--- Función para generar PDF ---
+  const generatePDF = () => {
+    if (!selectedSurvey) return;
+
+    const doc = new jsPDF();
+
+    const optionMap = {
+      1: "1 - Totalmente en Desacuerdo",
+      2: "2 - En Desacuerdo",
+      3: "3 - Neutral",
+      4: "4 - De Acuerdo",
+      5: "5 - Totalmente de Acuerdo",
+      SET: "SET (1)",
+      SEP: "SEP (0.5)",
+      NSE: "NSE (0)",
+    };
+
+    const orderedKeys = ["1", "2", "3", "4", "5", "SET", "SEP", "NSE"];
+    const globalTotals = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+      SET: 0,
+      SEP: 0,
+      NSE: 0,
+    };
+
+    // Título del reporte
+    doc.setFontSize(18);
+    doc.text("Reporte de Resultados", 14, 20);
+
+    doc.setFontSize(12);
+    doc.text(`Encuesta: ${selectedSurvey.title}`, 14, 30);
+    doc.text(`Evaluado: ${selectedSurvey.evaluated_name || "N/A"}`, 14, 36);
+    doc.text(`Materia: ${selectedSurvey.subject || "N/A"}`, 14, 42);
+    doc.text(
+      `Fecha de descagar del reporte: ${new Date().toLocaleDateString()}`,
+      14,
+      48,
+    );
+
+    let finalY = 55; // Posición vertical inicial
+
+    selectedSurvey.questions_analysis.forEach((q, index) => {
+      // Título de la pregunta
+      doc.setFontSize(11);
+      doc.setTextColor(0, 50, 150);
+      doc.setFont("helvetica", "bold");
+
+      // Verificamos si necesitamos nueva página
+      if (finalY > 270) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      doc.text(`Pregunta ${index + 1}: ${q.question_text}`, 14, finalY);
+
+      // Preparamos datos
+      const tableRows =
+        q.data && q.data.length > 0
+          ? q.data.map((item) => {
+              const raw = (item.name || "").toString();
+              const key = raw.replace("⭐", "").trim();
+
+              const label =
+                optionMap[key] || optionMap[key.toUpperCase()] || raw;
+              const cleanKey = key.toUpperCase();
+              if (globalTotals.hasOwnProperty(cleanKey)) {
+                globalTotals[cleanKey] += Number(item.value);
+              }
+
+              return [label, item.value.toString()];
+            })
+          : [["Sin datos", "0"]];
+
+      // --- AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL ---
+      // Pasamos 'doc' como primer argumento
+      autoTable(doc, {
+        startY: finalY + 5,
+        head: [["Opción de Respuesta", "Cantidad de Votos"]],
+        body: tableRows,
+        theme: "striped",
+        headStyles: { fillColor: [41, 128, 185] },
+        margin: { left: 14, right: 14 },
+        didDrawPage: (data) => {
+          finalY = data.cursor.y + 15;
+        },
+      });
+
+      // Actualizamos finalY
+      finalY = doc.lastAutoTable.finalY + 15;
+    });
+
+    // Tabla de resumen final
+    if (finalY > 270) {
+      doc.addPage();
+      finalY = 20;
+    }
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text("RESUMEN TOTAL GENERAL", 14, finalY);
+
+    const summaryRows = orderedKeys.map((key) => {
+      return [optionMap[key], globalTotals[key]];
+    });
+
+    const grandTotal = Object.values(globalTotals).reduce((a, b) => a + b, 0);
+    summaryRows.push(["TOTAL GENERAL", grandTotal]);
+
+    autoTable(doc, {
+      startY: finalY + 5,
+      head: [["Categoría", "Total Acumulado"]],
+      body: summaryRows,
+      theme: "grid",
+      headStyles: { fillColor: [42, 62, 80] },
+      columnStyles: {
+        0: { cellWidth: 120 },
+        1: { cellWidth: "auto", halign: "center" },
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    const today = new Date();
+    const dateStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+
+    const teahcerName = selectedSurvey.evaluated_name.replace(/,/g, "_").trim();
+
+    doc.save(`Reporte_${teahcerName}_${dateStr}.pdf`);
+  };
+
+  //--- Función para generar Excel ---
+  const generateExcel = () => {
+    if (!selectedSurvey) return;
+
+    const optionMap = {
+      1: "1 - Totalmente en Desacuerdo",
+      2: "2 - En Desacuerdo",
+      3: "3 - Neutral",
+      4: "4 - De Acuerdo",
+      5: "5 - Totalmente de Acuerdo",
+      SET: "SET (1)",
+      SEP: "SEP (0.5)",
+      NSE: "NSE (0)",
+    };
+
+    //Lista para iterar en orden específico al final
+    const orderedKeys = ["1", "2", "3", "4", "5", "SET", "SEP", "NSE"];
+    const globalTotals = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+      SET: 0,
+      SEP: 0,
+      NSE: 0,
+    };
+
+    //1. Se prepara la data en un formato plano
+    const excelData = [];
+
+    // Encabezados generales
+    excelData.push({ A: "REPORTE DE ENCUESTA", B: "" });
+    excelData.push({ A: "Título:", B: selectedSurvey.title });
+    excelData.push({
+      A: "Evaluado:",
+      B: selectedSurvey.evaluated_name || "N/A",
+    });
+    excelData.push({ A: "Materia:", B: selectedSurvey.subject || "N/A" });
+    excelData.push({
+      A: "Fecha descarga del reporte:",
+      B: new Date().toLocaleDateString(),
+    });
+    excelData.push({}); // Fila vacía
+
+    //Iteración por preguntas
+    selectedSurvey.questions_analysis.forEach((q, index) => {
+      excelData.push({ A: `PREGUNTA ${index + 1}:`, B: q.question_text });
+      excelData.push({ A: "Opción", B: "Cantidad" }); //Cabecera de tabla interna
+
+      if (q.data && q.data.length > 0) {
+        q.data.forEach((item) => {
+          const rawItemName = (item.name || "").toString(); // Aseguramos que sea string
+
+          const key = rawItemName.replace("⭐", "").trim(); // Eliminamos +P si existe
+
+          const label = optionMap[key] || rawItemName;
+
+          excelData.push({ A: label, B: item.value });
+
+          if (globalTotals.hasOwnProperty(key)) {
+            globalTotals[key] += item.value;
+          }
+        });
+      } else {
+        excelData.push({ A: "Sin datos", B: 0 });
+      }
+      excelData.push({ A: "", B: "" }); //Espacio entre preguntas
+    });
+
+    //--Resumen total al final--
+    excelData.push({ A: "", B: "" });
+    excelData.push({ A: "RESUMEN TOTAL GENERAL", B: "" });
+    excelData.push({ A: "Categoría", B: "Total Votos" });
+
+    orderedKeys.forEach((key) => {
+      excelData.push({ A: optionMap[key], B: globalTotals[key] });
+    });
+
+    const grandTotal = Object.values(globalTotals).reduce((a, b) => a + b, 0);
+    excelData.push({ A: "TOTAL GENERAL", B: grandTotal });
+
+    //2. Crear la hoja de cálculo/trabajo
+    const worksheet = XLSX.utils.json_to_sheet(excelData, { skipHeader: true });
+
+    //Ajuste del ancho de las columnas
+    const wscols = [{ wch: 40 }, { wch: 15 }];
+    worksheet["!cols"] = wscols;
+
+    //3. Crear el libro y descargar
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Resultados");
+
+    const today = new Date();
+    const dateStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
+
+    const teahcerName = selectedSurvey.evaluated_name.replace(/,/g, "_").trim();
+
+    XLSX.writeFile(workbook, `Reporte_${teahcerName}_${dateStr}.xlsx`);
   };
 
   if (loading) {
@@ -142,11 +384,32 @@ const ResultsView = () => {
               Materia: <b>{selectedSurvey.subject || "N/A"}</b>
             </p>
           </div>
-          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border text-center">
+
+          {/* --- BLOQUE DE BOTONES DE EXPORTACIÓN --- */}
+          <div className="flex gap-3">
+            <button
+              onClick={generateExcel}
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm font-medium"
+            >
+              <FileSpreadsheet size={18} /> Excel
+            </button>
+            <button
+              onClick={generatePDF}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-sm font-medium"
+            >
+              <FileText size={18} /> PDF
+            </button>
+          </div>
+          {/* --- FIN BLOQUE --- */}
+        </div>
+
+        {/* Bloque de Muestras (Movido un poco para acomodar botones, o puedes dejarlo al lado) */}
+        <div className="mt-4 flex justify-end">
+          <div className="bg-white px-6 py-3 rounded-lg shadow-sm border text-center inline-block">
             <span className="block text-3xl font-bold text-blue-600">
               {selectedSurvey.questions_analysis[0]?.data.reduce(
                 (acc, curr) => acc + curr.value,
-                0
+                0,
               ) || 0}
             </span>
             <span className="text-xs text-gray-400 uppercase font-bold tracking-wider">
