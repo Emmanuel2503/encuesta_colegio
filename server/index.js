@@ -81,10 +81,11 @@ app.post("/api/surveys", async (req, res) => {
       subject,
       expiration_date,
       questions,
-      teacher_assignment_id
+      teacher_assignment_id,
+      userId // Extract userId from request
     } = req.body;
 
-    const access_link = uuidv4().split("-")[0];
+    const access_link = uuidv4();
 
     await client.query("BEGIN");
 
@@ -92,8 +93,8 @@ app.post("/api/surveys", async (req, res) => {
     // We allow explicit text values for evaluated_name/subject even if using professional schema
     // This supports "Hybrid Mode" (Manual text entry OR Professional ID)
     const surveyRes = await client.query(
-      `INSERT INTO surveys (title, description, target_audience, evaluated_name, subject, access_link, expiration_date)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+      `INSERT INTO surveys (title, description, target_audience, evaluated_name, subject, access_link, expiration_date, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
       [
         title,
         description,
@@ -102,6 +103,7 @@ app.post("/api/surveys", async (req, res) => {
         subject,
         access_link,
         expiration_date,
+        userId || null, // Guardar el creador
       ]
     );
     const surveyId = surveyRes.rows[0].id;
@@ -137,18 +139,42 @@ app.post("/api/surveys", async (req, res) => {
   }
 });
 
-// 2. Login Admin
+// 1. LOGIN ADMIN (RBAC: USER/PASSWORD)
 app.post("/api/admin/login", async (req, res) => {
-  const { pin } = req.body;
+  const { username, password } = req.body;
+
   try {
-    const result = await pool.query(
-      "SELECT * FROM admin_settings WHERE pin_code = $1",
-      [pin]
+    // Buscar usuario en la base de datos
+    const userRes = await pool.query(
+      "SELECT id, username, password_hash, role, full_name FROM system_users WHERE username = $1",
+      [username]
     );
-    if (result.rows.length > 0) res.json({ success: true });
-    else res.status(401).json({ success: false });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+
+    if (userRes.rows.length === 0) {
+      return res.status(401).json({ error: "Usuario o contraseña inválidos" });
+    }
+
+    const user = userRes.rows[0];
+
+    // Comparar contraseña (TEXTO PLANO para MVP, idealmente usar bcrypt)
+    if (user.password_hash !== password) {
+      return res.status(401).json({ error: "Usuario o contraseña inválidos" });
+    }
+
+    // Login Exitoso
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        role: user.role,
+        full_name: user.full_name,
+        username: user.username
+      }
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
@@ -243,7 +269,7 @@ app.post("/api/public/submit", async (req, res) => {
 app.get("/api/admin/surveys", async (req, res) => {
   try {
     const text = `
-      SELECT s.*, COUNT(sub.id) as response_count 
+      SELECT s.*, COUNT(sub.id) as response_count, s.created_by
       FROM surveys s 
       LEFT JOIN submissions sub ON s.id = sub.survey_id 
       GROUP BY s.id 
@@ -338,48 +364,64 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
   }
 });
 
-// 7. ELIMINAR ENCUESTA
+// 7. ELIMINAR ENCUESTA (CON RBAC)
 app.delete("/api/surveys/:id", async (req, res) => {
-  const client = await pool.connect(); // Usar cliente para transacción
+  const client = await pool.connect();
   try {
     const { id } = req.params;
+    const { userId, userRole } = req.body; // Recibimos credenciales del solicitante
+
+    // a. Verificar Permisos
+    const surveyCheck = await client.query("SELECT created_by FROM surveys WHERE id = $1", [id]);
+
+    if (surveyCheck.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ error: "Encuesta no encontrada" });
+    }
+
+    const survey = surveyCheck.rows[0];
+
+    // Lógica RBAC Estricta
+    let canDelete = false;
+
+    if (userRole === 'ADMIN') {
+      canDelete = true; // Admin borra todo
+    } else if (userRole === 'EDITOR') {
+      // Editor solo borra lo suyo
+      // Nota: survey.created_by podría ser null si es vieja, en ese caso solo admin borra.
+      if (survey.created_by && survey.created_by.toString() === userId.toString()) {
+        canDelete = true;
+      }
+    }
+
+    if (!canDelete) {
+      client.release();
+      return res.status(403).json({ error: "No tienes permiso para borrar esta encuesta." });
+    }
 
     await client.query("BEGIN");
 
-    // a. Eliminar respuestas y envíos asociados
-    // Primero, obtener IDs de envíos para borrar respuestas (aunque ON DELETE CASCADE debería manejarlo, esto es robusto)
-    // Pero si asumimos que la BD tiene problemas con las FK, lo hacemos manual.
-
-    // Eliminamos directamente submissions (las respuestas deberían irse por cascade O las borramos también)
-    // Para asegurar, borramos respuestas de esos submissions primero.
+    // b. Eliminar dependencias
     await client.query(`
       DELETE FROM answers 
       WHERE submission_id IN (SELECT id FROM submissions WHERE survey_id = $1)
     `, [id]);
 
     await client.query("DELETE FROM submissions WHERE survey_id = $1", [id]);
-
-    // b. Eliminar preguntas
     await client.query("DELETE FROM questions WHERE survey_id = $1", [id]);
 
     // c. Eliminar la encuesta
-    const result = await client.query(
-      "DELETE FROM surveys WHERE id = $1 RETURNING *",
-      [id]
-    );
+    await client.query("DELETE FROM surveys WHERE id = $1", [id]);
 
     await client.query("COMMIT");
-
-    if (result.rows.length === 0)
-      return res.status(404).json({ error: "Encuesta no encontrada" });
-
     res.json({ message: "Encuesta eliminada correctamente" });
+
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (client) await client.query("ROLLBACK");
     console.error(error);
     res.status(500).json({ error: "Error al eliminar" });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 });
 
@@ -443,6 +485,42 @@ app.get("/api/reports/teachers-ranking/:id/details", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error obteniendo detalles del docente" });
+  }
+});
+
+
+// 11. CAMBIAR CONTRASEÑA (SOLO EDITORES)
+app.post("/api/auth/change-password", async (req, res) => {
+  const { userId, currentPassword, newPassword } = req.body;
+
+  try {
+    // Buscar usuario
+    const userRes = await pool.query("SELECT * FROM system_users WHERE id = $1", [userId]);
+
+    if (userRes.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
+    }
+
+    const user = userRes.rows[0];
+
+    // Política: ADMIN no puede cambiar clave por aquí
+    if (user.role === 'ADMIN') {
+      return res.status(403).json({ error: "Los administradores no pueden cambiar su clave por este medio." });
+    }
+
+    // Verificar clave actual
+    if (user.password_hash !== currentPassword) {
+      return res.status(401).json({ error: "La contraseña actual es incorrecta." });
+    }
+
+    // Actualizar clave
+    await pool.query("UPDATE system_users SET password_hash = $1 WHERE id = $2", [newPassword, userId]);
+
+    res.json({ success: true, message: "Contraseña actualizada correctamente" });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al cambiar contraseña" });
   }
 });
 

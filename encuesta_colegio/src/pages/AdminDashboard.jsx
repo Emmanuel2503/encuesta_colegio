@@ -15,6 +15,7 @@ import {
   Send,
   Loader2,
   Award, // Nuevo icono
+  ShieldCheck,
 } from "lucide-react";
 import api from "../api/axiosConfig";
 import toast from "react-hot-toast"; // Notificaciones ligeras
@@ -23,6 +24,7 @@ import Swal from "sweetalert2"; // Modales de confirmación
 const AdminDashboard = () => {
   const [surveys, setSurveys] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(null);
   const navigate = useNavigate();
 
   const totalResponses = surveys.reduce(
@@ -43,6 +45,10 @@ const AdminDashboard = () => {
   };
 
   useEffect(() => {
+    const storedUser = localStorage.getItem("user_data");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     fetchSurveys();
   }, []);
 
@@ -61,7 +67,9 @@ const AdminDashboard = () => {
 
     if (result.isConfirmed) {
       try {
-        await api.delete(`/api/surveys/${id}`);
+        await api.delete(`/api/surveys/${id}`, {
+          data: { userId: user.id, userRole: user.role }
+        });
         setSurveys(surveys.filter((s) => s.id !== id));
         // Mensaje de éxito bonito
         Swal.fire(
@@ -130,6 +138,45 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleChangePassword = async () => {
+    const { value: formValues } = await Swal.fire({
+      title: 'Cambiar Contraseña',
+      html:
+        '<input type="password" id="swal-input1" class="swal2-input" placeholder="Contraseña Actual">' +
+        '<input type="password" id="swal-input2" class="swal2-input" placeholder="Nueva Contraseña">',
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Actualizar',
+      preConfirm: () => {
+        return [
+          document.getElementById('swal-input1').value,
+          document.getElementById('swal-input2').value
+        ]
+      }
+    });
+
+    if (formValues) {
+      const [currentPassword, newPassword] = formValues;
+      if (!currentPassword || !newPassword) {
+        return Swal.fire('Error', 'Debes completar ambos campos', 'error');
+      }
+
+      try {
+        const res = await api.post("/api/auth/change-password", {
+          userId: user.id,
+          currentPassword,
+          newPassword
+        });
+
+        if (res.data.success) {
+          Swal.fire('Éxito', 'Contraseña actualizada correctamente', 'success');
+        }
+      } catch (error) {
+        Swal.fire('Error', error.response?.data?.error || "Error al cambiar contraseña", 'error');
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 text-blue-600">
@@ -152,9 +199,17 @@ const AdminDashboard = () => {
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-700">Directora</p>
-              <p className="text-xs text-slate-400">Sesión Activa</p>
+              <p className="text-sm font-bold text-slate-700">{user?.full_name || "Usuario"}</p>
+              <p className="text-xs text-slate-400 capitalize">{user?.role?.toLowerCase() || "Invitado"}</p>
             </div>
+            {user?.role === 'EDITOR' && (
+              <button
+                onClick={handleChangePassword}
+                className="text-xs font-bold text-blue-600 hover:underline mr-2"
+              >
+                Cambiar Clave
+              </button>
+            )}
             <button
               onClick={handleLogout}
               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-all"
@@ -425,13 +480,24 @@ const AdminDashboard = () => {
 
                           <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
-                          <button
-                            onClick={() => handleDelete(survey.id)}
-                            className="p-2 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
-                            title="Eliminar Encuesta"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                          {/* LOGICA DE BORRADO RBAC */}
+                          {(user?.role === 'ADMIN' || (user?.role === 'EDITOR' && survey.created_by == user.id)) ? (
+                            <button
+                              onClick={() => handleDelete(survey.id)}
+                              className="p-2 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                              title="Eliminar Encuesta"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              className="p-2 text-gray-300 cursor-not-allowed"
+                              title="Sin permisos para eliminar"
+                              disabled
+                            >
+                              <ShieldCheck size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>

@@ -107,6 +107,13 @@ const SurveyBuilder = () => {
       // If user selected an assignment (ID), we auto-fill the legacy fields for backup
       let payload = { ...data, expiration_date: data.expiration_date };
 
+      // RBAC: Attach creator ID
+      const storedUser = localStorage.getItem("user_data");
+      if (storedUser) {
+        const user = JSON.parse(storedUser);
+        payload.userId = user.id;
+      }
+
       const res = await api.post("/api/surveys", payload);
 
       toast.dismiss(loadingToast);

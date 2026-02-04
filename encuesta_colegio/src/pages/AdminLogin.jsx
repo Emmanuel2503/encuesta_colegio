@@ -4,7 +4,8 @@ import { ShieldCheck, Loader2, ChevronRight } from "lucide-react";
 import api from "../api/axiosConfig";
 
 const AdminLogin = () => {
-  const [pin, setPin] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,10 +17,12 @@ const AdminLogin = () => {
 
     try {
       // Petición real al backend configurado
-      const res = await api.post("/api/admin/login", { pin });
+      const res = await api.post("/api/admin/login", { username, password });
 
       if (res.data.success) {
         localStorage.setItem("admin_token", "session_valid");
+        // NEW: Store full user object
+        localStorage.setItem("user_data", JSON.stringify(res.data.user));
         localStorage.setItem("last_activity", Date.now().toString());
         navigate("/admin/dashboard");
       }
@@ -50,28 +53,40 @@ const AdminLogin = () => {
         <div className="bg-white p-8 md:p-10 rounded-3xl shadow-2xl border border-gray-100 backdrop-blur-sm">
           <div className="text-center mb-8">
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800 tracking-tight">
-              Panel de Control
+              Acreditación Institucional
             </h1>
             <p className="text-slate-500 mt-2 text-sm">
-              Introduce tus credenciales de seguridad para gestionar las
-              encuestas.
+              Sistema de Gestión de Encuestas
             </p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-6">
-            <div className="relative">
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 text-center">
-                PIN de Acceso
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Usuario
+              </label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                className="w-full p-4 border border-gray-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder-gray-300 text-slate-700"
+                placeholder="ej. directora"
+                disabled={loading}
+                autoFocus
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                Contraseña
               </label>
               <input
                 type="password"
-                maxLength={5}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-                className="w-full text-center text-3xl font-mono tracking-[0.5em] p-4 border border-gray-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder-gray-300 text-slate-700"
-                placeholder="•••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full p-4 border border-gray-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-500 outline-none transition-all placeholder-gray-300 text-slate-700"
+                placeholder="••••••••"
                 disabled={loading}
-                autoFocus
               />
             </div>
 
@@ -84,7 +99,7 @@ const AdminLogin = () => {
 
             <button
               type="submit"
-              disabled={loading || pin.length < 1}
+              disabled={loading || !username || !password}
               className="group w-full bg-slate-900 hover:bg-blue-600 disabled:bg-slate-300 text-white font-bold py-4 rounded-xl transition-all duration-300 flex justify-center items-center gap-2 shadow-lg shadow-slate-200 hover:shadow-blue-200 hover:-translate-y-0.5 active:translate-y-0"
             >
               {loading ? (
