@@ -15,7 +15,10 @@ const TeacherRanking = () => {
             const fetchDetails = async () => {
                 setDetailsLoading(true);
                 try {
-                    const res = await api.get(`/api/reports/teachers-ranking/${selectedTeacher.teacher_id}/details`);
+                    // NOTE: teacherId is now a string name, so we encode it
+                    const res = await api.get(
+                        `/api/reports/teachers-ranking/${encodeURIComponent(selectedTeacher.teacher_id)}/details`
+                    );
                     setTeacherDetails(res.data);
                 } catch (error) {
                     console.error("Error cargando detalles:", error);

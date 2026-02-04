@@ -98,17 +98,17 @@ const SurveyPublicView = () => {
           <div className="flex flex-wrap gap-4 text-xs font-bold uppercase tracking-wide opacity-80">
             {survey.evaluated_name && (
               <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded">
-                <User size={14} /> {survey.evaluated_name}
+                <User size={14} /> Nombre: {survey.evaluated_name}
               </span>
             )}
             {survey.subject && (
               <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded">
-                <BookOpen size={14} /> {survey.subject}
+                <BookOpen size={14} /> Materia: {survey.subject}
               </span>
             )}
             <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded">
               <Clock size={14} />{" "}
-              {new Date(survey.expiration_date).toLocaleDateString()}
+              Fecha: {new Date(survey.expiration_date).toLocaleDateString()}
             </span>
           </div>
         </div>

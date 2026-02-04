@@ -372,16 +372,15 @@ app.get("/api/reports/teachers-ranking", async (req, res) => {
   try {
     const query = `
       SELECT 
-        t.id as teacher_id,
-        t.first_name || ' ' || t.last_name as full_name,
+        MAX(s.evaluated_name) as full_name,  -- Display the "prettiest" version found
+        LOWER(TRIM(s.evaluated_name)) as teacher_id, -- Use lower case name as ID for routing
         ROUND(AVG(a.answer_value), 2) as average_score,
         COUNT(DISTINCT s.id) as total_surveys
-      FROM teachers t
-      JOIN teacher_assignments ta ON t.id = ta.teacher_id
-      JOIN submissions s ON ta.id = s.teacher_assignment_id
-      JOIN answers a ON s.id = a.submission_id
-      WHERE a.answer_value IS NOT NULL
-      GROUP BY t.id, t.first_name, t.last_name
+      FROM surveys s
+      JOIN submissions sub ON s.id = sub.survey_id
+      JOIN answers a ON sub.id = a.submission_id
+      WHERE a.answer_value IS NOT NULL AND s.evaluated_name IS NOT NULL
+      GROUP BY LOWER(TRIM(s.evaluated_name))
       ORDER BY average_score DESC
     `;
 
@@ -399,17 +398,15 @@ app.get("/api/reports/teachers-ranking/:id/details", async (req, res) => {
   try {
     const query = `
       SELECT 
-        s.name as subject_name,
-        ap.name as period_name,
+        s.subject as subject_name,
+        TO_CHAR(s.created_at, 'YYYY-MM-DD') as period_name, -- Use simplified date as period
         ROUND(AVG(a.answer_value), 2) as subject_average,
         COUNT(DISTINCT sub.id) as survey_count
-      FROM teacher_assignments ta
-      JOIN subjects s ON ta.subject_id = s.id
-      JOIN academic_periods ap ON ta.period_id = ap.id
-      JOIN submissions sub ON ta.id = sub.teacher_assignment_id
+      FROM surveys s
+      JOIN submissions sub ON s.id = sub.survey_id
       JOIN answers a ON sub.id = a.submission_id
-      WHERE ta.teacher_id = $1 AND a.answer_value IS NOT NULL
-      GROUP BY s.name, ap.name
+      WHERE LOWER(TRIM(s.evaluated_name)) = LOWER(TRIM($1)) AND a.answer_value IS NOT NULL
+      GROUP BY s.subject, TO_CHAR(s.created_at, 'YYYY-MM-DD')
       ORDER BY subject_average DESC
     `;
 

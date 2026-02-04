@@ -17,8 +17,7 @@ const SurveyBuilder = () => {
   const location = useLocation();
   const cloneData = location.state?.cloneData;
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [assignments, setAssignments] = useState([]); // List of Teacher-Subject pairs
-  const [isLoadingAssignments, setIsLoadingAssignments] = useState(true);
+
 
   const {
     register,
@@ -32,31 +31,19 @@ const SurveyBuilder = () => {
       title: "",
       target_audience: "ESTUDIANTE_A_DOCENTE",
       questions: [],
-      teacher_assignment_id: "", // New Field for Professional Schema
+
     },
   });
 
   const targetAudience = watch("target_audience");
+
   const { fields, append, remove, replace } = useFieldArray({
     control,
     name: "questions",
   });
 
   // Fetch Assignments on Mount
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const res = await api.get("/api/setup/assignments");
-        setAssignments(res.data);
-      } catch (error) {
-        console.error("Error loading assignments", error);
-        toast.error("No se pudieron cargar los profesores/materias");
-      } finally {
-        setIsLoadingAssignments(false);
-      }
-    };
-    fetchAssignments();
-  }, []);
+
 
   useEffect(() => {
     if (cloneData) {
@@ -119,14 +106,6 @@ const SurveyBuilder = () => {
       // Logic for Professional Schema:
       // If user selected an assignment (ID), we auto-fill the legacy fields for backup
       let payload = { ...data, expiration_date: data.expiration_date };
-
-      if (data.teacher_assignment_id) {
-        const selected = assignments.find(a => a.id.toString() === data.teacher_assignment_id.toString());
-        if (selected) {
-          payload.evaluated_name = `${selected.first_name} ${selected.last_name}`;
-          payload.subject = `${selected.subject_name} (${selected.section_name})`;
-        }
-      }
 
       const res = await api.post("/api/surveys", payload);
 
@@ -262,30 +241,7 @@ const SurveyBuilder = () => {
             />
           </div>
 
-          {/* SELECTOR DE PROFESORES/MATERIAS (NUEVO) */}
-          <div className="col-span-2">
-            <label className="block text-sm font-bold text-gray-700 mb-1">
-              Seleccionar Docente y Materia (Oficial)
-            </label>
-            {isLoadingAssignments ? (
-              <p className="text-sm text-gray-400">Cargando lista oficial...</p>
-            ) : (
-              <select
-                {...register("teacher_assignment_id")}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-100 outline-none"
-              >
-                <option value="">-- Selección Manual (Opcional) --</option>
-                {assignments.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.last_name}, {a.first_name} - {a.subject_name} ({a.section_name})
-                  </option>
-                ))}
-              </select>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              * Si seleccionas una opción de la lista, los campos de nombre y materia se llenarán automáticamente.
-            </p>
-          </div>
+
 
           {/* CAMPOS MANUALES (FALLBACK) */}
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
@@ -308,9 +264,8 @@ const SurveyBuilder = () => {
                 </label>
                 <input
                   {...register("evaluated_name")}
-                  placeholder="Se llena auto si seleccionas arriba"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50"
-                // Removed readOnly
+                  placeholder="Prof. Juan Pérez"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
               </div>
               <div className="col-span-2 md:col-span-1">
@@ -319,9 +274,8 @@ const SurveyBuilder = () => {
                 </label>
                 <input
                   {...register("subject")}
-                  placeholder="Se llena auto si seleccionas arriba"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50"
-                // Removed readOnly
+                  placeholder="Matemáticas 5to Año"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
               </div>
             </>
