@@ -264,7 +264,7 @@ const SurveyBuilder = () => {
                 </label>
                 <input
                   {...register("evaluated_name")}
-                  placeholder="Prof. Juan Pérez"
+                  placeholder="Nombre y Apellido"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
               </div>

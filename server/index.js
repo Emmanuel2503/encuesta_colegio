@@ -340,18 +340,46 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
 
 // 7. ELIMINAR ENCUESTA
 app.delete("/api/surveys/:id", async (req, res) => {
+  const client = await pool.connect(); // Usar cliente para transacción
   try {
     const { id } = req.params;
-    const result = await pool.query(
+
+    await client.query("BEGIN");
+
+    // a. Eliminar respuestas y envíos asociados
+    // Primero, obtener IDs de envíos para borrar respuestas (aunque ON DELETE CASCADE debería manejarlo, esto es robusto)
+    // Pero si asumimos que la BD tiene problemas con las FK, lo hacemos manual.
+
+    // Eliminamos directamente submissions (las respuestas deberían irse por cascade O las borramos también)
+    // Para asegurar, borramos respuestas de esos submissions primero.
+    await client.query(`
+      DELETE FROM answers 
+      WHERE submission_id IN (SELECT id FROM submissions WHERE survey_id = $1)
+    `, [id]);
+
+    await client.query("DELETE FROM submissions WHERE survey_id = $1", [id]);
+
+    // b. Eliminar preguntas
+    await client.query("DELETE FROM questions WHERE survey_id = $1", [id]);
+
+    // c. Eliminar la encuesta
+    const result = await client.query(
       "DELETE FROM surveys WHERE id = $1 RETURNING *",
       [id]
     );
+
+    await client.query("COMMIT");
+
     if (result.rows.length === 0)
       return res.status(404).json({ error: "Encuesta no encontrada" });
+
     res.json({ message: "Encuesta eliminada correctamente" });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
     res.status(500).json({ error: "Error al eliminar" });
+  } finally {
+    client.release();
   }
 });
 
