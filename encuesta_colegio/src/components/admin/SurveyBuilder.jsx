@@ -118,7 +118,7 @@ const SurveyBuilder = () => {
     try {
       // Logic for Professional Schema:
       // If user selected an assignment (ID), we auto-fill the legacy fields for backup
-      let payload = { ...data, expiration_date: new Date(data.expiration_date).toISOString() };
+      let payload = { ...data, expiration_date: data.expiration_date };
 
       if (data.teacher_assignment_id) {
         const selected = assignments.find(a => a.id.toString() === data.teacher_assignment_id.toString());

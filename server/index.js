@@ -324,7 +324,14 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
       return { ...q, data: chartData };
     });
 
-    res.json({ ...survey, questions_analysis: detailedQuestions });
+    // d. Comentarios Generales
+    const commentsRes = await pool.query(
+      "SELECT general_comment FROM submissions WHERE survey_id = $1 AND general_comment IS NOT NULL AND general_comment != ''",
+      [id]
+    );
+    const comments = commentsRes.rows.map(row => row.general_comment);
+
+    res.json({ ...survey, questions_analysis: detailedQuestions, comments });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error analizando resultados" });

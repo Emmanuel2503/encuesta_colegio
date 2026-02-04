@@ -549,6 +549,29 @@ const ResultsView = () => {
           </div>
         ))}
       </div>
+
+      {/* SECCIÓN DE COMENTARIOS GENERALES */}
+      <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <FileText size={20} className="text-blue-500" />
+          Comentarios Generales
+        </h3>
+
+        {selectedSurvey.comments && selectedSurvey.comments.length > 0 ? (
+          <div className="space-y-3">
+            {selectedSurvey.comments.map((comment, index) => (
+              <div
+                key={index}
+                className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 italic"
+              >
+                "{comment}"
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-400 text-sm">No hay comentarios generales registrados.</p>
+        )}
+      </div>
     </div>
   );
 };
