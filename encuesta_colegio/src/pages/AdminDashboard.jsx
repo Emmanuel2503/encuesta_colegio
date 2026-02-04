@@ -264,6 +264,43 @@ const AdminDashboard = () => {
             </h3>
           </div>
 
+          {/* LEYENDA DE ACCIONES (RESPONSIVE) */}
+          <div className="bg-slate-50 border-b border-slate-100 p-4 text-xs text-slate-500">
+            <p className="font-bold mb-2 uppercase tracking-wider text-slate-400">Guía de Acciones:</p>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white text-blue-600 border border-slate-200 rounded-md shadow-sm">
+                  <Copy size={14} />
+                </div>
+                <span>Copiar Enlace</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white text-indigo-600 border border-slate-200 rounded-md shadow-sm">
+                  <Files size={14} />
+                </div>
+                <span>Duplicar</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white text-emerald-600 border border-slate-200 rounded-md shadow-sm">
+                  <ExternalLink size={14} />
+                </div>
+                <span>Ver Encuesta</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white text-orange-500 border border-slate-200 rounded-md shadow-sm">
+                  <RotateCcw size={14} />
+                </div>
+                <span>Reiniciar</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white text-red-600 border border-slate-200 rounded-md shadow-sm">
+                  <Trash2 size={14} />
+                </div>
+                <span>Eliminar</span>
+              </div>
+            </div>
+          </div>
+
           {surveys.length === 0 ? (
             <div className="p-12 text-center">
               <div className="inline-block p-4 bg-slate-50 rounded-full mb-4">
