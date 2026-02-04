@@ -142,3 +142,8 @@ ON CONFLICT (username) DO NOTHING;
 
 -- 6. DATOS SEMILLA INICIALES (Opcional - PIN de Admin)
 INSERT INTO admin_settings (pin_code) VALUES ('12345') ON CONFLICT DO NOTHING;
+
+-- 7. Crear Usuario Editor (Solo gestión de encuestas propias)
+INSERT INTO system_users (username, password_hash, role, full_name)
+VALUES ('editor', 'editor123', 'EDITOR', 'Editor de Encuestas')
+ON CONFLICT (username) DO NOTHING;

@@ -1,129 +1,124 @@
 -- =============================================
 -- SCRIPT DE DATOS DE PRUEBA: RANKING DOCENTE
--- Ejecutar en pgAdmin o psql para poblar el ranking
+-- Ejecutar en pgAdmin o psql para probar el ranking
 -- =============================================
+
+TRUNCATE TABLE 
+    answers, submissions, questions, surveys, 
+    teacher_assignments, subjects, teachers, academic_periods 
+    RESTART IDENTITY CASCADE;
+
+INSERT INTO admin_settings (pin_code) VALUES ('12345') ON CONFLICT DO NOTHING;	
 
 DO $$
 DECLARE
-    -- Variables para IDs
+    v_period_id INTEGER;
+    
+    -- Variables para el profesor "Normal"
     v_teacher_id INTEGER;
     v_subject_id INTEGER;
-    v_period_id INTEGER;
-    v_assignment_id INTEGER;
+    v_assign_id INTEGER;
     v_survey_id UUID;
-    v_question_ids INTEGER[];
+    v_q1 INTEGER; v_q2 INTEGER; v_q3 INTEGER;
     v_submission_id INTEGER;
-    v_question_text TEXT;
     
-    -- Configuración de Profesores (Nombre, Apellido, Puntaje Objetivo)
-    -- Target Score: Promedio hacia donde se inclinarán los votos aleatorios
-    teachers_array jsonb := '[
-        {"first": "Ana", "last": "García", "target": 4.8},
-        {"first": "Carlos", "last": "Pérez", "target": 4.2},
-        {"first": "María", "last": "Rodríguez", "target": 3.5},
-        {"first": "Juan", "last": "López", "target": 2.8},
-        {"first": "Laura", "last": "Martínez", "target": 4.0}
-    ]';
-    
-    subjects_array text[] := ARRAY['Matemáticas', 'Historia', 'Ciencias', 'Literatura', 'Arte'];
-    
-    -- Variables de bucle
+    -- Variables para el profesor "Multifacético" (Caso especial)
+    v_multi_teacher_id INTEGER;
+    v_subj_good_id INTEGER;
+    v_subj_bad_id INTEGER;
+    v_assign_good_id INTEGER;
+    v_assign_bad_id INTEGER;
+    v_survey_good_id UUID;
+    v_survey_bad_id UUID;
+
+    rec jsonb;
     i INTEGER;
-    j INTEGER;
-    k INTEGER;
-    num_submissions INTEGER;
-    v_score NUMERIC;
+    random_score NUMERIC;
     
-    -- Función para generar UUID random (si pgcrypto no existe, usamos gen_random_uuid nativo de PG 13+)
+    -- Profesores de relleno (Simple 1 materia)
+    teacher_data jsonb := '[
+        {"name": "Alberto", "last": "Einstein", "materia": "Física", "target": 4.9},
+        {"name": "Dolores", "last": "Umbridge", "materia": "Defensa", "target": 1.5}
+    ]';
 BEGIN
-    RAISE NOTICE '🌱 Iniciando generación de datos para Ranking...';
+    RAISE NOTICE '🚀 Generando datos con caso Multi-Materia...';
 
-    -- 1. Asegurar Periodo Activo
-    SELECT id INTO v_period_id FROM academic_periods WHERE is_active = true LIMIT 1;
-    IF v_period_id IS NULL THEN
-        INSERT INTO academic_periods (name, start_date, end_date, is_active) 
-        VALUES ('2025-2026', NOW(), NOW() + INTERVAL '1 year', true) 
-        RETURNING id INTO v_period_id;
-    END IF;
+    -- 2. PERIODO
+    INSERT INTO academic_periods (name, start_date, end_date, is_active)
+    VALUES ('Lapso 2025-I', NOW(), NOW() + INTERVAL '6 months', true)
+    RETURNING id INTO v_period_id;
 
-    -- Bucle por cada profesor configurado
-    FOR i IN 0..jsonb_array_length(teachers_array) - 1 LOOP
-        
-        -- 2. Insertar Profesor
+    -- ============================================================
+    -- PASO A: GENERAR PROFESORES SIMPLES (RELLENO)
+    -- ============================================================
+    FOR rec IN SELECT * FROM jsonb_array_elements(teacher_data) LOOP
+        -- (Misma lógica anterior resumida para no hacer largo el script)
         INSERT INTO teachers (national_id, first_name, last_name, email)
-        VALUES (
-            'ID-' || substring(md5(random()::text), 1, 8), 
-            teachers_array->i->>'first', 
-            teachers_array->i->>'last', 
-            lower(teachers_array->i->>'first') || '@simulado.com'
-        ) RETURNING id INTO v_teacher_id;
-
-        -- 3. Insertar Materia
-        INSERT INTO subjects (name, code, educational_level)
-        VALUES (subjects_array[i+1], 'SUB-' || substring(md5(random()::text), 1, 4), 'Media General')
-        RETURNING id INTO v_subject_id;
-
-        -- 4. Asignar Materia a Profesor
-        INSERT INTO teacher_assignments (teacher_id, subject_id, period_id, section_name) 
-        VALUES (v_teacher_id, v_subject_id, v_period_id, 'A') 
-        RETURNING id INTO v_assignment_id;
-
-        -- 5. Crear Encuesta para esa Asignación
-        INSERT INTO surveys (title, description, target_audience, evaluated_name, subject, access_link, expiration_date)
-        VALUES (
-            'Evaluación: ' || (teachers_array->i->>'last'), 
-            'Encuesta generada automáticamente para pruebas de ranking', 
-            'ESTUDIANTE_A_DOCENTE', 
-            (teachers_array->i->>'first') || ' ' || (teachers_array->i->>'last'), 
-            subjects_array[i+1], 
-            substring(md5(random()::text), 1, 8), -- Link random
-            NOW() + INTERVAL '1 month'
-        ) RETURNING id INTO v_survey_id;
-
-        -- 6. Insertar Preguntas (4 fijas)
-        v_question_ids := ARRAY[]::INTEGER[];
+        VALUES ('V-'||floor(random()*1000)::text, rec->>'name', rec->>'last', lower(rec->>'name')||'@test.com') RETURNING id INTO v_teacher_id;
         
-        INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-        VALUES (v_survey_id, '¿El docente explica con claridad?', 'ESCALA_1_5', 1, 'General', 'Claridad de conceptos') RETURNING id INTO v_question_ids[1];
+        INSERT INTO subjects (code, name, educational_level) VALUES (substring(md5(random()::text),1,5), rec->>'materia', 'Media') RETURNING id INTO v_subject_id;
         
-        INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-        VALUES (v_survey_id, '¿Asiste puntualmente a clases?', 'ESCALA_1_5', 2, 'General', 'Puntualidad') RETURNING id INTO v_question_ids[2];
+        INSERT INTO teacher_assignments (teacher_id, subject_id, period_id, section_name) VALUES (v_teacher_id, v_subject_id, v_period_id, 'A') RETURNING id INTO v_assign_id;
         
-        INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-        VALUES (v_survey_id, '¿Fomenta la participación?', 'ESCALA_1_5', 3, 'General', NULL) RETURNING id INTO v_question_ids[3];
+        INSERT INTO surveys (title, description, target_audience, access_link, expiration_date, evaluated_name, subject)
+        VALUES ('Eval '||(rec->>'last'), 'Desc', 'ESTUDIANTE_A_DOCENTE', 'link-'||(rec->>'last'), NOW()+'1 month', (rec->>'name')||' '||(rec->>'last'), rec->>'materia') RETURNING id INTO v_survey_id;
         
-        INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-        VALUES (v_survey_id, '¿Es respetuoso con los alumnos?', 'ESCALA_1_5', 4, 'General', 'Trato respetuoso') RETURNING id INTO v_question_ids[4];
-
-        -- 7. Generar Respuestas Simuladas (Entre 20 y 50)
-        num_submissions := floor(random() * 30 + 20)::int;
-        RAISE NOTICE '   > Generando % respuestas para % % (Target: %)', num_submissions, teachers_array->i->>'first', teachers_array->i->>'last', teachers_array->i->>'target';
-
-        FOR k IN 1..num_submissions LOOP
-            -- Crear Submission
-            INSERT INTO submissions (survey_id, teacher_assignment_id) 
-            VALUES (v_survey_id, v_assignment_id) 
-            RETURNING id INTO v_submission_id;
-
-            -- Crear Answers para cada pregunta
-            FOREACH j IN ARRAY v_question_ids LOOP
-                 -- Lógica simple para simular promedio: Target +/- aleatorio
-                 -- Generamos un número normal alrededor del target (aproximado)
-                 v_score := (teachers_array->i->>'target')::numeric + (random() * 2 - 1); -- Target +/- 1
-                 
-                 -- Clamp entre 1 y 5
-                 IF v_score > 5 THEN v_score := 5; END IF;
-                 IF v_score < 1 THEN v_score := 1; END IF;
-                 
-                 -- Redondear a .0 o .5 para que se vea más real o entero
-                 v_score := round(v_score);
-
-                INSERT INTO answers (submission_id, question_id, answer_value) 
-                VALUES (v_submission_id, j, v_score);
-            END LOOP;
+        -- Preguntas
+        INSERT INTO questions (survey_id, question_text, question_type, order_index) VALUES (v_survey_id, 'Pregunta General', 'ESCALA_1_5', 1) RETURNING id INTO v_q1;
+        
+        -- Respuestas
+        FOR i IN 1..40 LOOP
+            INSERT INTO submissions (survey_id, teacher_assignment_id) VALUES (v_survey_id, v_assign_id) RETURNING id INTO v_submission_id;
+            random_score := (rec->>'target')::numeric + (random() - 0.5);
+            IF random_score > 5 THEN random_score := 5; END IF; IF random_score < 1 THEN random_score := 1; END IF;
+            INSERT INTO answers (submission_id, question_id, answer_value) VALUES (v_submission_id, v_q1, round(random_score));
         END LOOP;
-        
     END LOOP;
 
-    RAISE NOTICE '✅ ¡Datos de Ranking generados exitosamente!';
+    -- ============================================================
+    -- PASO B: EL CASO "RICARDO DOBLE CARA" (EL IMPORTANTE)
+    -- ============================================================
+    
+    -- 1. Crear al Profesor
+    INSERT INTO teachers (national_id, first_name, last_name, email)
+    VALUES ('V-99999', 'Ricardo', 'Multifacetico', 'ricardo@test.com') 
+    RETURNING id INTO v_multi_teacher_id;
+
+    -- 2. Crear DOS Materias Distintas
+    INSERT INTO subjects (code, name, educational_level) VALUES ('MAT-ADV', 'Matemáticas Avanzadas', 'Media') RETURNING id INTO v_subj_good_id;
+    INSERT INTO subjects (code, name, educational_level) VALUES ('HIS-BASIC', 'Historia Básica', 'Media') RETURNING id INTO v_subj_bad_id;
+
+    -- 3. Asignar AMBAS al mismo profesor
+    INSERT INTO teacher_assignments (teacher_id, subject_id, period_id, section_name) VALUES (v_multi_teacher_id, v_subj_good_id, v_period_id, 'A') RETURNING id INTO v_assign_good_id;
+    INSERT INTO teacher_assignments (teacher_id, subject_id, period_id, section_name) VALUES (v_multi_teacher_id, v_subj_bad_id, v_period_id, 'B') RETURNING id INTO v_assign_bad_id;
+
+    -- ------------------------------------------------------------
+    -- ESCENARIO 1: MATEMÁTICAS (LO HACE EXCELENTE -> TARGET 4.8)
+    -- ------------------------------------------------------------
+    INSERT INTO surveys (title, description, target_audience, access_link, expiration_date, evaluated_name, subject)
+    VALUES ('Eval Matemáticas', 'Evalua al Prof Ricardo en Math', 'ESTUDIANTE_A_DOCENTE', 'ricardo-math', NOW()+'1 month', 'Ricardo Multifacetico', 'Matemáticas Avanzadas') RETURNING id INTO v_survey_good_id;
+
+    INSERT INTO questions (survey_id, question_text, question_type, order_index) VALUES (v_survey_good_id, 'Dominio de Matemáticas', 'ESCALA_1_5', 1) RETURNING id INTO v_q1;
+
+    -- Generar 50 respuestas MUY BUENAS (4 o 5)
+    FOR i IN 1..50 LOOP
+        INSERT INTO submissions (survey_id, teacher_assignment_id) VALUES (v_survey_good_id, v_assign_good_id) RETURNING id INTO v_submission_id;
+        INSERT INTO answers (submission_id, question_id, answer_value) VALUES (v_submission_id, v_q1, floor(random()*2 + 4)); -- Genera 4 o 5
+    END LOOP;
+
+    -- ------------------------------------------------------------
+    -- ESCENARIO 2: HISTORIA (LO HACE MAL -> TARGET 2.0)
+    -- ------------------------------------------------------------
+    INSERT INTO surveys (title, description, target_audience, access_link, expiration_date, evaluated_name, subject)
+    VALUES ('Eval Historia', 'Evalua al Prof Ricardo en Historia', 'ESTUDIANTE_A_DOCENTE', 'ricardo-hist', NOW()+'1 month', 'Ricardo Multifacetico', 'Historia Básica') RETURNING id INTO v_survey_bad_id;
+
+    INSERT INTO questions (survey_id, question_text, question_type, order_index) VALUES (v_survey_bad_id, 'Dominio de Historia', 'ESCALA_1_5', 1) RETURNING id INTO v_q1; -- Reusamos variable v_q1 para nueva ID
+
+    -- Generar 50 respuestas MUY MALAS (1 o 2)
+    FOR i IN 1..50 LOOP
+        INSERT INTO submissions (survey_id, teacher_assignment_id) VALUES (v_survey_bad_id, v_assign_bad_id) RETURNING id INTO v_submission_id;
+        INSERT INTO answers (submission_id, question_id, answer_value) VALUES (v_submission_id, v_q1, floor(random()*2 + 1)); -- Genera 1 o 2
+    END LOOP;
+
+    RAISE NOTICE 'Datos generados. Busca a Ricardo Multifacetico en el ranking.';
 END $$;
