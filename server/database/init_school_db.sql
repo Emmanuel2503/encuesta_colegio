@@ -73,7 +73,8 @@ CREATE TABLE IF NOT EXISTS surveys (
     -- Pero idealmente, el contexto está en el Envío (Submission). 
     -- Mantenemos estos como nulos para compatibilidad con tu código actual
     evaluated_name VARCHAR(150), 
-    subject VARCHAR(100) 
+    subject VARCHAR(100), 
+    created_by INTEGER
 );
 
 -- Preguntas asociadas con una Encuesta
@@ -123,5 +124,21 @@ CREATE TABLE IF NOT EXISTS answers (
     CONSTRAINT fk_answer_question FOREIGN KEY (question_id) REFERENCES questions(id)
 );
 
--- 5. DATOS SEMILLA INICIALES (Opcional - PIN de Admin)
+
+-- 5. GESTIÓN DE USUARIOS (RBAC)
+CREATE TABLE IF NOT EXISTS system_users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL, -- Para MVP almacenamos texto plano o hash simple. Idealmente bcrypt.
+    role VARCHAR(20) NOT NULL CHECK (role IN ('ADMIN', 'EDITOR')),
+    full_name VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insertar usuario Admin por defecto si no existe
+INSERT INTO system_users (username, password_hash, role, full_name)
+VALUES ('admin', 'admin123', 'ADMIN', 'Administrador Principal')
+ON CONFLICT (username) DO NOTHING;
+
+-- 6. DATOS SEMILLA INICIALES (Opcional - PIN de Admin)
 INSERT INTO admin_settings (pin_code) VALUES ('12345') ON CONFLICT DO NOTHING;
