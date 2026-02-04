@@ -5,6 +5,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import SurveyBuilder from "./components/admin/SurveyBuilder";
 import SurveyPublicView from "./pages/SurveyPublicView";
+import TeacherRanking from "./pages/TeacherRanking"; // Nuevo
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/ranking" element={<TeacherRanking />} /> {/* Nueva Ruta */}
           <Route path="/admin/resultados" element={<ResultsView />} />
 
           <Route

@@ -14,6 +14,7 @@ import {
   FileText,
   Send,
   Loader2,
+  Award, // Nuevo icono
 } from "lucide-react";
 import api from "../api/axiosConfig";
 import toast from "react-hot-toast"; // Notificaciones ligeras
@@ -237,6 +238,21 @@ const AdminDashboard = () => {
               </p>
             </div>
           </Link>
+
+          <Link
+            to="/admin/ranking"
+            className="flex items-center gap-5 p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-yellow-300 hover:shadow-md transition-all col-span-1 sm:col-span-2 md:col-span-1 lg:col-span-2 xl:col-span-2 group"
+          >
+            <div className="bg-yellow-50 text-yellow-600 p-3 rounded-xl group-hover:scale-110 transition-transform">
+              <Award size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800">Ranking Docente</h3>
+              <p className="text-slate-500 text-sm">
+                Tabla de rendimiento y KPIs oficiales
+              </p>
+            </div>
+          </Link>
         </div>
 
         {/* TABLE SECTION */}
@@ -291,11 +307,10 @@ const AdminDashboard = () => {
 
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                            survey.target_audience === "ESTUDIANTE_A_DOCENTE"
-                              ? "bg-blue-50 text-blue-700 border-blue-100"
-                              : "bg-purple-50 text-purple-700 border-purple-100"
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${survey.target_audience === "ESTUDIANTE_A_DOCENTE"
+                            ? "bg-blue-50 text-blue-700 border-blue-100"
+                            : "bg-purple-50 text-purple-700 border-purple-100"
+                            }`}
                         >
                           {survey.target_audience === "ESTUDIANTE_A_DOCENTE"
                             ? "Estudiante"
@@ -389,8 +404,8 @@ const AdminDashboard = () => {
             </div>
           )}
         </div>
-      </main>
-    </div>
+      </main >
+    </div >
   );
 };
 

@@ -360,6 +360,61 @@ app.delete("/api/surveys/:id/reset", async (req, res) => {
   }
 });
 
+// 9. REPORTE DE RANKING DOCENTE
+app.get("/api/reports/teachers-ranking", async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        t.id as teacher_id,
+        t.first_name || ' ' || t.last_name as full_name,
+        ROUND(AVG(a.answer_value), 2) as average_score,
+        COUNT(DISTINCT s.id) as total_surveys
+      FROM teachers t
+      JOIN teacher_assignments ta ON t.id = ta.teacher_id
+      JOIN submissions s ON ta.id = s.teacher_assignment_id
+      JOIN answers a ON s.id = a.submission_id
+      WHERE a.answer_value IS NOT NULL
+      GROUP BY t.id, t.first_name, t.last_name
+      ORDER BY average_score DESC
+    `;
+
+    const result = await pool.query(query);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error generando el ranking docente" });
+  }
+});
+
+// 10. DETALLE DE RANKING POR DOCENTE (Desglose por materia)
+app.get("/api/reports/teachers-ranking/:id/details", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const query = `
+      SELECT 
+        s.name as subject_name,
+        ap.name as period_name,
+        ROUND(AVG(a.answer_value), 2) as subject_average,
+        COUNT(DISTINCT sub.id) as survey_count
+      FROM teacher_assignments ta
+      JOIN subjects s ON ta.subject_id = s.id
+      JOIN academic_periods ap ON ta.period_id = ap.id
+      JOIN submissions sub ON ta.id = sub.teacher_assignment_id
+      JOIN answers a ON sub.id = a.submission_id
+      WHERE ta.teacher_id = $1 AND a.answer_value IS NOT NULL
+      GROUP BY s.name, ap.name
+      ORDER BY subject_average DESC
+    `;
+
+    const result = await pool.query(query, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error obteniendo detalles del docente" });
+  }
+});
+
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend listo en http://localhost:${PORT}`);
