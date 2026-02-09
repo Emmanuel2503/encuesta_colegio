@@ -16,6 +16,7 @@ import {
   Loader2,
   Award, // Nuevo icono
   ShieldCheck,
+  Edit, // Nuevo icono
 } from "lucide-react";
 import api from "../api/axiosConfig";
 import toast from "react-hot-toast"; // Notificaciones ligeras
@@ -29,7 +30,7 @@ const AdminDashboard = () => {
 
   const totalResponses = surveys.reduce(
     (acc, curr) => acc + parseInt(curr.response_count || 0),
-    0
+    0,
   );
   const activeSurveys = surveys.length;
 
@@ -68,14 +69,14 @@ const AdminDashboard = () => {
     if (result.isConfirmed) {
       try {
         await api.delete(`/api/surveys/${id}`, {
-          data: { userId: user.id, userRole: user.role }
+          data: { userId: user.id, userRole: user.role },
         });
         setSurveys(surveys.filter((s) => s.id !== id));
         // Mensaje de éxito bonito
         Swal.fire(
           "¡Eliminado!",
           "La encuesta ha sido borrada del sistema.",
-          "success"
+          "success",
         );
       } catch (error) {
         toast.error("Error al eliminar la encuesta.");
@@ -140,39 +141,43 @@ const AdminDashboard = () => {
 
   const handleChangePassword = async () => {
     const { value: formValues } = await Swal.fire({
-      title: 'Cambiar Contraseña',
+      title: "Cambiar Contraseña",
       html:
         '<input type="password" id="swal-input1" class="swal2-input" placeholder="Contraseña Actual">' +
         '<input type="password" id="swal-input2" class="swal2-input" placeholder="Nueva Contraseña">',
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: 'Actualizar',
+      confirmButtonText: "Actualizar",
       preConfirm: () => {
         return [
-          document.getElementById('swal-input1').value,
-          document.getElementById('swal-input2').value
-        ]
-      }
+          document.getElementById("swal-input1").value,
+          document.getElementById("swal-input2").value,
+        ];
+      },
     });
 
     if (formValues) {
       const [currentPassword, newPassword] = formValues;
       if (!currentPassword || !newPassword) {
-        return Swal.fire('Error', 'Debes completar ambos campos', 'error');
+        return Swal.fire("Error", "Debes completar ambos campos", "error");
       }
 
       try {
         const res = await api.post("/api/auth/change-password", {
           userId: user.id,
           currentPassword,
-          newPassword
+          newPassword,
         });
 
         if (res.data.success) {
-          Swal.fire('Éxito', 'Contraseña actualizada correctamente', 'success');
+          Swal.fire("Éxito", "Contraseña actualizada correctamente", "success");
         }
       } catch (error) {
-        Swal.fire('Error', error.response?.data?.error || "Error al cambiar contraseña", 'error');
+        Swal.fire(
+          "Error",
+          error.response?.data?.error || "Error al cambiar contraseña",
+          "error",
+        );
       }
     }
   };
@@ -199,10 +204,14 @@ const AdminDashboard = () => {
           </div>
           <div className="flex items-center gap-6">
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-bold text-slate-700">{user?.full_name || "Usuario"}</p>
-              <p className="text-xs text-slate-400 capitalize">{user?.role?.toLowerCase() || "Invitado"}</p>
+              <p className="text-sm font-bold text-slate-700">
+                {user?.full_name || "Usuario"}
+              </p>
+              <p className="text-xs text-slate-400 capitalize">
+                {user?.role?.toLowerCase() || "Invitado"}
+              </p>
             </div>
-            {user?.role === 'EDITOR' && (
+            {user?.role === "EDITOR" && (
               <button
                 onClick={handleChangePassword}
                 className="text-xs font-bold text-blue-600 hover:underline mr-2"
@@ -302,7 +311,9 @@ const AdminDashboard = () => {
               <Award size={32} />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-slate-800">Ranking Docente</h3>
+              <h3 className="text-xl font-bold text-slate-800">
+                Ranking Docente
+              </h3>
               <p className="text-slate-500 text-sm">
                 Tabla de rendimiento y KPIs oficiales
               </p>
@@ -321,10 +332,12 @@ const AdminDashboard = () => {
 
           {/* LEYENDA DE ACCIONES (RESPONSIVE) */}
           <div className="bg-slate-50 border-b border-slate-100 p-4 text-xs text-slate-500">
-            <p className="font-bold mb-2 uppercase tracking-wider text-slate-400">Guía de Acciones:</p>
+            <p className="font-bold mb-2 uppercase tracking-wider text-slate-400">
+              Guía de Acciones:
+            </p>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-white text-blue-600 border border-slate-200 rounded-md shadow-sm">
+                <div className="p-1.5 bg-white text-yellow-600 border border-slate-200 rounded-md shadow-sm">
                   <Copy size={14} />
                 </div>
                 <span>Copiar Enlace</span>
@@ -346,6 +359,12 @@ const AdminDashboard = () => {
                   <RotateCcw size={14} />
                 </div>
                 <span>Reiniciar</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-white text-blue-600 border border-slate-200 rounded-md shadow-sm">
+                  <Edit size={14} />
+                </div>
+                <span>Editar Encuesta</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="p-1.5 bg-white text-red-600 border border-slate-200 rounded-md shadow-sm">
@@ -399,10 +418,11 @@ const AdminDashboard = () => {
 
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${survey.target_audience === "ESTUDIANTE_A_DOCENTE"
-                            ? "bg-blue-50 text-blue-700 border-blue-100"
-                            : "bg-purple-50 text-purple-700 border-purple-100"
-                            }`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
+                            survey.target_audience === "ESTUDIANTE_A_DOCENTE"
+                              ? "bg-blue-50 text-blue-700 border-blue-100"
+                              : "bg-purple-50 text-purple-700 border-purple-100"
+                          }`}
                         >
                           {survey.target_audience === "ESTUDIANTE_A_DOCENTE"
                             ? "Estudiante"
@@ -434,7 +454,7 @@ const AdminDashboard = () => {
                             day: "2-digit",
                             month: "short",
                             year: "numeric",
-                          }
+                          },
                         )}
                       </td>
 
@@ -442,7 +462,7 @@ const AdminDashboard = () => {
                         <div className="flex items-center justify-end gap-2 opacity-60 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={() => copyLink(survey.access_link)}
-                            className="p-2 hover:bg-white hover:text-blue-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
+                            className="p-2 hover:bg-white hover:text-yellow-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
                             title="Copiar Enlace"
                           >
                             <Copy size={18} />
@@ -480,11 +500,21 @@ const AdminDashboard = () => {
 
                           <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
+                          <button
+                            //onClick={() => handleDuplicate(survey.id)}
+                            className="p-2 hover:bg-white hover:text-blue-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
+                            title="Editar Encuesta"
+                          >
+                            <Edit size={18} />
+                          </button>
+
                           {/* LOGICA DE BORRADO RBAC */}
-                          {(user?.role === 'ADMIN' || (user?.role === 'EDITOR' && survey.created_by == user.id)) ? (
+                          {user?.role === "ADMIN" ||
+                          (user?.role === "EDITOR" &&
+                            survey.created_by == user.id) ? (
                             <button
                               onClick={() => handleDelete(survey.id)}
-                              className="p-2 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                              className="p-2 hover:bg-white hover:text-red-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
                               title="Eliminar Encuesta"
                             >
                               <Trash2 size={18} />
@@ -507,8 +537,8 @@ const AdminDashboard = () => {
             </div>
           )}
         </div>
-      </main >
-    </div >
+      </main>
+    </div>
   );
 };
 
