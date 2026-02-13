@@ -1,8 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import api from "../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
-import { CheckCircle, User, BookOpen, Clock, AlertCircle, Info } from "lucide-react";
+import api from "../api/axiosConfig";
+import {
+  CheckCircle,
+  User,
+  BookOpen,
+  Clock,
+  AlertCircle,
+  Info,
+} from "lucide-react";
 
 const SurveyPublicView = () => {
   const { link } = useParams();
@@ -10,29 +17,67 @@ const SurveyPublicView = () => {
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState(null);
+  const [sessionToken, setSessionToken] = useState(null);
+  const sessionTokenRef = useRef(sessionToken);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm();
 
+  // Actualizar la ref cuando cambie sessionToken
   useEffect(() => {
-    // Usamos 'api' en lugar de axios
-    api
-      .get(`/api/public/surveys/${link}`)
-      .then((res) => setSurvey(res.data))
-      .catch((err) => setError(true))
-      .finally(() => setLoading(false));
+    sessionTokenRef.current = sessionToken;
+  }, [sessionToken]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSurvey = async () => {
+      try {
+        const res = await api.get(`/api/public/surveys/${link}`);
+        if (isMounted) {
+          setSurvey(res.data);
+          // Iniciar sesión después de obtener la encuesta
+          startSession();
+        }
+      } catch (err) {
+        if (isMounted) setError(true);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    const startSession = async () => {
+      try {
+        const res = await api.post(`/api/public/surveys/${link}/start`);
+        if (isMounted) setSessionToken(res.data.sessionToken);
+      } catch (err) {
+        console.error("No se pudo iniciar sesión de respuesta");
+      }
+    };
+
+    fetchSurvey();
+
+    // Cleanup: finalizar sesión si el componente se desmonta
+    return () => {
+      isMounted = false;
+      if (sessionTokenRef.current) {
+        const data = JSON.stringify({ sessionToken: sessionTokenRef.current });
+        navigator.sendBeacon(`/api/public/surveys/${link}/end`, data);
+      }
+    };
   }, [link]);
 
-  // Agrupar preguntas
+  // Agrupar preguntas por categoría
   const groupedQuestions = survey
     ? survey.questions.reduce((acc, q) => {
-      const cat = q.category || "Cuestionario";
-      if (!acc[cat]) acc[cat] = [];
-      acc[cat].push(q);
-      return acc;
-    }, {})
+        const cat = q.category || "Cuestionario";
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(q);
+        return acc;
+      }, {})
     : {};
 
   const onSubmit = async (data) => {
@@ -48,13 +93,14 @@ const SurveyPublicView = () => {
     }));
 
     try {
-      // Usamos 'api' aquí también
       await api.post("/api/public/submit", {
         survey_id: survey.id,
         answers: formattedAnswers,
         general_comment,
+        sessionToken, // Incluir el token
       });
       setSubmitted(true);
+      setSessionToken(null); // Limpiar localmente
     } catch (e) {
       alert("Error de conexión");
     }
@@ -107,14 +153,14 @@ const SurveyPublicView = () => {
               </span>
             )}
             <span className="flex items-center gap-1 bg-white/10 px-3 py-1 rounded">
-              <Clock size={14} />{" "}
-              Fecha: {new Date(survey.expiration_date).toLocaleDateString()}
+              <Clock size={14} /> Fecha:{" "}
+              {new Date(survey.expiration_date).toLocaleDateString()}
             </span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-8">
-          {/* LEYENDA TIPO ESTRELLAS (1-5) */}
+          {/* LEYENDA TIPO ESTRELLAS */}
           <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 text-sm text-gray-700">
             <h4 className="font-bold text-blue-800 mb-2">
               Guía de Puntuación (Escala 1 al 5)
@@ -152,23 +198,27 @@ const SurveyPublicView = () => {
               </div>
             </div>
           </div>
+
           {Object.entries(groupedQuestions).map(([category, questions]) => (
             <div key={category}>
-              {/* TÍTULO DE SECCIÓN ELEGANTE */}
               <h3 className="text-blue-600 font-bold text-sm uppercase tracking-wider border-b border-gray-100 pb-2 mb-4">
                 {category}
               </h3>
 
               <div className="space-y-6">
-                {questions.map((q, idx) => (
+                {questions.map((q) => (
                   <div key={q.id}>
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-gray-800 font-medium text-sm md:text-base">
-                        {q.question_text} <span className="text-red-400">*</span>
+                        {q.question_text}{" "}
+                        <span className="text-red-400">*</span>
                       </p>
                       {q.help_text && (
                         <div className="group relative">
-                          <Info size={16} className="text-blue-400 cursor-help" />
+                          <Info
+                            size={16}
+                            className="text-blue-400 cursor-help"
+                          />
                           <div className="hidden group-hover:block absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-64 bg-gray-800 text-white text-xs p-2 rounded shadow-lg z-10 pointer-events-none">
                             {q.help_text}
                             <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
@@ -177,7 +227,7 @@ const SurveyPublicView = () => {
                       )}
                     </div>
 
-                    {/* OPCIONES TIPO DOCENTE (SET/SEP/NSE) */}
+                    {/* OPCIONES TIPO DOCENTE */}
                     {q.question_type === "ESCALA_DOCENTE" && (
                       <div className="flex flex-wrap gap-2">
                         {[
@@ -240,6 +290,7 @@ const SurveyPublicView = () => {
                       </div>
                     )}
 
+                    {/* TEXTO LIBRE */}
                     {q.question_type === "TEXTO" && (
                       <input
                         {...register(`question_${q.id}`, { required: true })}
@@ -259,7 +310,7 @@ const SurveyPublicView = () => {
             </div>
           ))}
 
-          {/* COMENTARIO FINAL INTEGRADO */}
+          {/* COMENTARIO FINAL */}
           <div className="mt-8 pt-6 border-t border-gray-100">
             <label className="block text-gray-700 font-bold mb-2 text-sm">
               Observaciones Generales (Opcional)

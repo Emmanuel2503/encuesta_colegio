@@ -395,7 +395,7 @@ const AdminDashboard = () => {
                     <th className="px-6 py-4">Título / Materia</th>
                     <th className="px-6 py-4">Audiencia</th>
                     <th className="px-6 py-4 text-center">Participación</th>
-                    <th className="px-6 py-4">Fecha</th>
+                    <th className="px-6 py-4">Fecha de creación</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -501,7 +501,9 @@ const AdminDashboard = () => {
                           <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
                           <button
-                            //onClick={() => handleDuplicate(survey.id)}
+                            onClick={() =>
+                              navigate(`/admin/editar/${survey.id}`)
+                            }
                             className="p-2 hover:bg-white hover:text-blue-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
                             title="Editar Encuesta"
                           >

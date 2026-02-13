@@ -7,6 +7,7 @@ import SurveyBuilder from "./components/admin/SurveyBuilder";
 import SurveyPublicView from "./pages/SurveyPublicView";
 import TeacherRanking from "./pages/TeacherRanking"; // Nuevo
 import ProtectedRoute from "./components/admin/ProtectedRoute";
+import EditSurvey from "./components/admin/EditSurvey";
 
 function App() {
   return (
@@ -27,9 +28,9 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/ranking" element={<TeacherRanking />} /> {/* Nueva Ruta */}
+          <Route path="/admin/ranking" element={<TeacherRanking />} />{" "}
+          {/* Nueva Ruta */}
           <Route path="/admin/resultados" element={<ResultsView />} />
-
           <Route
             path="/admin/crear"
             element={
@@ -43,6 +44,22 @@ function App() {
                   </a>
                 </div>
                 <SurveyBuilder />
+              </div>
+            }
+          />
+          <Route
+            path="/admin/editar/:id"
+            element={
+              <div className="min-h-screen bg-gray-50 pb-10">
+                <div className="max-w-4xl mx-auto pt-6 px-6">
+                  <a
+                    href="/admin/dashboard"
+                    className="text-gray-500 hover:text-gray-800 text-sm"
+                  >
+                    ← Volver al Panel
+                  </a>
+                </div>
+                <EditSurvey />
               </div>
             }
           />

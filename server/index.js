@@ -13,7 +13,9 @@ app.use(express.json());
 // 1. Get Teachers
 app.get("/api/setup/teachers", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM teachers ORDER BY last_name");
+    const result = await pool.query(
+      "SELECT * FROM teachers ORDER BY last_name",
+    );
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -27,7 +29,7 @@ app.post("/api/setup/teachers", async (req, res) => {
     const { national_id, first_name, last_name, email } = req.body;
     const result = await pool.query(
       "INSERT INTO teachers (national_id, first_name, last_name, email) VALUES ($1, $2, $3, $4) RETURNING *",
-      [national_id, first_name, last_name, email]
+      [national_id, first_name, last_name, email],
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -82,7 +84,7 @@ app.post("/api/surveys", async (req, res) => {
       expiration_date,
       questions,
       teacher_assignment_id,
-      userId // Extract userId from request
+      userId, // Extract userId from request
     } = req.body;
 
     const access_link = uuidv4();
@@ -104,7 +106,7 @@ app.post("/api/surveys", async (req, res) => {
         access_link,
         expiration_date,
         userId || null, // Guardar el creador
-      ]
+      ],
     );
     const surveyId = surveyRes.rows[0].id;
 
@@ -147,7 +149,7 @@ app.post("/api/admin/login", async (req, res) => {
     // Buscar usuario en la base de datos
     const userRes = await pool.query(
       "SELECT id, username, password_hash, role, full_name FROM system_users WHERE username = $1",
-      [username]
+      [username],
     );
 
     if (userRes.rows.length === 0) {
@@ -168,10 +170,9 @@ app.post("/api/admin/login", async (req, res) => {
         id: user.id,
         role: user.role,
         full_name: user.full_name,
-        username: user.username
-      }
+        username: user.username,
+      },
     });
-
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error interno del servidor" });
@@ -182,34 +183,44 @@ app.post("/api/admin/login", async (req, res) => {
 
 // 3. OBTENER ENCUESTA POR LINK
 app.get("/api/public/surveys/:link", async (req, res) => {
+  console.log("🚀 Entró al enpoint con link:", req.params.link);
   try {
     const { link } = req.params;
 
     // a. Buscar encuesta
     const surveyRes = await pool.query(
       `SELECT * FROM surveys WHERE access_link = $1`,
-      [link]
+      [link],
     );
 
     if (surveyRes.rows.length === 0) {
+      console.log("No se encontró la encuesta ❌");
       return res.status(404).json({ error: "Encuesta no encontrada" });
     }
 
     const survey = surveyRes.rows[0];
+    console.log("✅ Encuesta encontrada: ", survey.id, survey.title);
+    console.log(
+      "📅 expiration_date:",
+      survey.expiration_date,
+      "tipo:",
+      typeof survey.expiration_date,
+    );
+    console.log("🔘 is_active:", survey.is_active); // si existe
 
     // b. Validar Expiración
-    if (new Date() > new Date(survey.expiration_date)) {
+    /*if (new Date() > new Date(survey.expiration_date)) {
       return res
         .status(410)
         .json({ error: "Esta encuesta ha finalizado", expired: true });
-    }
+    }*/
 
     // c. Buscar preguntas
     const questionsRes = await pool.query(
-      `SELECT * FROM questions WHERE survey_id = $1 ORDER BY order_index ASC`,
-      [survey.id]
+      "SELECT * FROM questions WHERE survey_id = $1 ORDER BY order_index",
+      [survey.id],
     );
-
+    console.log("📋 preguntas:", questionsRes.rows.length);
     res.json({ ...survey, questions: questionsRes.rows });
   } catch (error) {
     console.error(error);
@@ -220,16 +231,74 @@ app.get("/api/public/surveys/:link", async (req, res) => {
 // 4. GUARDAR RESPUESTAS (SUBMIT)
 app.post("/api/public/submit", async (req, res) => {
   const client = await pool.connect();
+  console.log("📦 req.body recibido:", req.body);
+  try {
+    const {
+      survey_id,
+      answers,
+      general_comment,
+      teacher_assignment_id,
+      sessionToken,
+    } = req.body;
+
+    await client.query("BEGIN");
+
+    const subRes = await client.query(
+      `INSERT INTO submissions (survey_id, general_comment, teacher_assignment_id) VALUES ($1, $2, $3) RETURNING id`,
+      [survey_id, general_comment || null, teacher_assignment_id || null],
+    );
+    const submissionId = subRes.rows[0].id;
+
+    const answerQuery = `
+      INSERT INTO answers (submission_id, question_id, answer_value, answer_text)
+      VALUES ($1, $2, $3, $4)
+    `;
+    for (const ans of answers) {
+      const val =
+        ans.value !== null && ans.value !== undefined && ans.value !== ""
+          ? parseFloat(ans.value)
+          : null;
+      const txt = ans.text || null;
+      await client.query(answerQuery, [
+        submissionId,
+        ans.question_id,
+        val,
+        txt,
+      ]);
+    }
+
+    await client.query("COMMIT");
+
+    // Eliminar la sesión activa si existe
+    if (sessionToken) {
+      await pool.query(
+        "DELETE FROM active_survey_sessions WHERE session_token = $1",
+        [sessionToken],
+      );
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error(error);
+    res.status(500).json({ error: "Error al guardar respuestas" });
+  } finally {
+    client.release();
+  }
+});
+/*app.post("/api/public/submit", async (req, res) => {
+  const client = await pool.connect();
   try {
     // Now receiving teacher_assignment_id if available form frontend
-    const { survey_id, answers, general_comment, teacher_assignment_id } = req.body;
+    const { survey_id, answers, general_comment, teacher_assignment_id } =
+      req.body;
 
     await client.query("BEGIN");
 
     // a. Create Submission
     const subRes = await client.query(
       `INSERT INTO submissions (survey_id, general_comment, teacher_assignment_id) VALUES ($1, $2, $3) RETURNING id`,
-      [survey_id, general_comment || null, teacher_assignment_id || null]
+      [survey_id, general_comment || null, teacher_assignment_id || null],
     );
     const submissionId = subRes.rows[0].id;
 
@@ -263,7 +332,7 @@ app.post("/api/public/submit", async (req, res) => {
   } finally {
     client.release();
   }
-});
+});*/
 
 // 5. OBTENER LISTA DE ENCUESTAS (Admin)
 app.get("/api/admin/surveys", async (req, res) => {
@@ -299,7 +368,7 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
     // b. Preguntas
     const questionsRes = await pool.query(
       "SELECT * FROM questions WHERE survey_id = $1 ORDER BY order_index",
-      [id]
+      [id],
     );
     const questions = questionsRes.rows;
 
@@ -322,7 +391,7 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
       if (q.question_type === "ESCALA_1_5") {
         chartData = [1, 2, 3, 4, 5].map((star) => {
           const found = relevantStats.find(
-            (s) => parseFloat(s.answer_value) === star
+            (s) => parseFloat(s.answer_value) === star,
           );
           return {
             name: `${star}⭐`,
@@ -336,7 +405,7 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
           { val: 0, label: "NSE (0)" },
         ].map((opt) => {
           const found = relevantStats.find(
-            (s) => parseFloat(s.answer_value) === opt.val
+            (s) => parseFloat(s.answer_value) === opt.val,
           );
           return { name: opt.label, value: found ? parseInt(found.count) : 0 };
         });
@@ -353,9 +422,9 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
     // d. Comentarios Generales
     const commentsRes = await pool.query(
       "SELECT general_comment FROM submissions WHERE survey_id = $1 AND general_comment IS NOT NULL AND general_comment != ''",
-      [id]
+      [id],
     );
-    const comments = commentsRes.rows.map(row => row.general_comment);
+    const comments = commentsRes.rows.map((row) => row.general_comment);
 
     res.json({ ...survey, questions_analysis: detailedQuestions, comments });
   } catch (err) {
@@ -372,7 +441,10 @@ app.delete("/api/surveys/:id", async (req, res) => {
     const { userId, userRole } = req.body; // Recibimos credenciales del solicitante
 
     // a. Verificar Permisos
-    const surveyCheck = await client.query("SELECT created_by FROM surveys WHERE id = $1", [id]);
+    const surveyCheck = await client.query(
+      "SELECT created_by FROM surveys WHERE id = $1",
+      [id],
+    );
 
     if (surveyCheck.rows.length === 0) {
       client.release();
@@ -384,28 +456,36 @@ app.delete("/api/surveys/:id", async (req, res) => {
     // Lógica RBAC Estricta
     let canDelete = false;
 
-    if (userRole === 'ADMIN') {
+    if (userRole === "ADMIN") {
       canDelete = true; // Admin borra todo
-    } else if (userRole === 'EDITOR') {
+    } else if (userRole === "EDITOR") {
       // Editor solo borra lo suyo
       // Nota: survey.created_by podría ser null si es vieja, en ese caso solo admin borra.
-      if (survey.created_by && survey.created_by.toString() === userId.toString()) {
+      if (
+        survey.created_by &&
+        survey.created_by.toString() === userId.toString()
+      ) {
         canDelete = true;
       }
     }
 
     if (!canDelete) {
       client.release();
-      return res.status(403).json({ error: "No tienes permiso para borrar esta encuesta." });
+      return res
+        .status(403)
+        .json({ error: "No tienes permiso para borrar esta encuesta." });
     }
 
     await client.query("BEGIN");
 
     // b. Eliminar dependencias
-    await client.query(`
+    await client.query(
+      `
       DELETE FROM answers 
       WHERE submission_id IN (SELECT id FROM submissions WHERE survey_id = $1)
-    `, [id]);
+    `,
+      [id],
+    );
 
     await client.query("DELETE FROM submissions WHERE survey_id = $1", [id]);
     await client.query("DELETE FROM questions WHERE survey_id = $1", [id]);
@@ -415,7 +495,6 @@ app.delete("/api/surveys/:id", async (req, res) => {
 
     await client.query("COMMIT");
     res.json({ message: "Encuesta eliminada correctamente" });
-
   } catch (error) {
     if (client) await client.query("ROLLBACK");
     console.error(error);
@@ -488,14 +567,16 @@ app.get("/api/reports/teachers-ranking/:id/details", async (req, res) => {
   }
 });
 
-
 // 11. CAMBIAR CONTRASEÑA (SOLO EDITORES)
 app.post("/api/auth/change-password", async (req, res) => {
   const { userId, currentPassword, newPassword } = req.body;
 
   try {
     // Buscar usuario
-    const userRes = await pool.query("SELECT * FROM system_users WHERE id = $1", [userId]);
+    const userRes = await pool.query(
+      "SELECT * FROM system_users WHERE id = $1",
+      [userId],
+    );
 
     if (userRes.rows.length === 0) {
       return res.status(404).json({ error: "Usuario no encontrado" });
@@ -504,26 +585,255 @@ app.post("/api/auth/change-password", async (req, res) => {
     const user = userRes.rows[0];
 
     // Política: ADMIN no puede cambiar clave por aquí
-    if (user.role === 'ADMIN') {
-      return res.status(403).json({ error: "Los administradores no pueden cambiar su clave por este medio." });
+    if (user.role === "ADMIN") {
+      return res.status(403).json({
+        error: "Los administradores no pueden cambiar su clave por este medio.",
+      });
     }
 
     // Verificar clave actual
     if (user.password_hash !== currentPassword) {
-      return res.status(401).json({ error: "La contraseña actual es incorrecta." });
+      return res
+        .status(401)
+        .json({ error: "La contraseña actual es incorrecta." });
     }
 
     // Actualizar clave
-    await pool.query("UPDATE system_users SET password_hash = $1 WHERE id = $2", [newPassword, userId]);
+    await pool.query(
+      "UPDATE system_users SET password_hash = $1 WHERE id = $2",
+      [newPassword, userId],
+    );
 
-    res.json({ success: true, message: "Contraseña actualizada correctamente" });
-
+    res.json({
+      success: true,
+      message: "Contraseña actualizada correctamente",
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Error al cambiar contraseña" });
   }
 });
 
+// Obtener encuesta para edición (con preguntas y estado de bloqueo)
+app.get("/api/admin/surveys/:id/edit", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const surveyRes = await pool.query("SELECT * FROM surveys WHERE id = $1", [
+      id,
+    ]);
+    if (surveyRes.rows.length === 0) {
+      return res.status(404).json({ error: "Encuesta no encontrada" });
+    }
+    const survey = surveyRes.rows[0];
+
+    const questionsRes = await pool.query(
+      "SELECT * FROM questions WHERE survey_id = $1 ORDER BY order_index",
+      [id],
+    );
+    survey.questions = questionsRes.rows;
+
+    const submissionsCount = await pool.query(
+      "SELECT COUNT(*) FROM submissions WHERE survey_id = $1",
+      [id],
+    );
+    const sessionsCount = await pool.query(
+      "SELECT COUNT(*) FROM active_survey_sessions WHERE survey_id = $1",
+      [id],
+    );
+
+    survey.has_responses = parseInt(submissionsCount.rows[0].count) > 0;
+    survey.has_active_sessions = parseInt(sessionsCount.rows[0].count) > 0;
+
+    res.json(survey);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al obtener encuesta" });
+  }
+});
+
+// Editar encuesta (solo si no tiene respuestas ni sesiones activas)
+app.put("/api/surveys/:id", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const {
+      title,
+      description,
+      target_audience,
+      evaluated_name,
+      subject,
+      expiration_date,
+      questions,
+      userId,
+      userRole,
+    } = req.body;
+
+    // Verificar permisos (similar a DELETE)
+    const surveyCheck = await client.query(
+      "SELECT created_by FROM surveys WHERE id = $1",
+      [id],
+    );
+    if (surveyCheck.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ error: "Encuesta no encontrada" });
+    }
+    const survey = surveyCheck.rows[0];
+
+    let canEdit = false;
+    if (userRole === "ADMIN") {
+      canEdit = true;
+    } else if (
+      userRole === "EDITOR" &&
+      survey.created_by &&
+      survey.created_by.toString() === userId.toString()
+    ) {
+      canEdit = true;
+    }
+    if (!canEdit) {
+      client.release();
+      return res
+        .status(403)
+        .json({ error: "No tienes permiso para editar esta encuesta." });
+    }
+
+    // Validar que no tenga respuestas
+    const submissionsRes = await client.query(
+      "SELECT COUNT(*) FROM submissions WHERE survey_id = $1",
+      [id],
+    );
+    if (parseInt(submissionsRes.rows[0].count) > 0) {
+      client.release();
+      return res.status(409).json({
+        error: "No se puede editar una encuesta que ya tiene respuestas.",
+      });
+    }
+
+    // Validar que no tenga sesiones activas
+    const sessionsRes = await client.query(
+      "SELECT COUNT(*) FROM active_survey_sessions WHERE survey_id = $1",
+      [id],
+    );
+    if (parseInt(sessionsRes.rows[0].count) > 0) {
+      client.release();
+      return res.status(409).json({
+        error:
+          "No se puede editar una encuesta que está siendo respondida actualmente.",
+      });
+    }
+
+    await client.query("BEGIN");
+
+    // Actualizar datos de la encuesta (conversión a UTC para evitar problemas de zona horaria)
+    const expirationUTC = new Date(expiration_date).toISOString();
+    await client.query(
+      `UPDATE surveys SET title=$1, description=$2, target_audience=$3, evaluated_name=$4, subject=$5, expiration_date=$6 WHERE id=$7`,
+      [
+        title,
+        description,
+        target_audience,
+        evaluated_name,
+        subject,
+        expirationUTC,
+        id,
+      ],
+    );
+
+    // Eliminar preguntas existentes (seguro porque no hay respuestas)
+    await client.query("DELETE FROM questions WHERE survey_id = $1", [id]);
+
+    // Insertar nuevas preguntas
+    const questionQuery = `
+      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
+      VALUES ($1, $2, $3, $4, $5, $6)
+    `;
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      await client.query(questionQuery, [
+        id,
+        q.text,
+        q.type,
+        i,
+        q.category || null,
+        q.help_text || null,
+      ]);
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Encuesta actualizada correctamente" });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error(error);
+    res.status(500).json({ error: "Error interno al editar encuesta" });
+  } finally {
+    client.release();
+  }
+});
+
+// Iniciar sesión (cuando el estudiante accede a la encuesta pública)
+app.post("/api/public/surveys/:link/start", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { link } = req.params;
+    const surveyRes = await client.query(
+      "SELECT id FROM surveys WHERE access_link = $1",
+      [link],
+    );
+    if (surveyRes.rows.length === 0) {
+      return res.status(404).json({ error: "Encuesta no encontrada" });
+    }
+    const surveyId = surveyRes.rows[0].id;
+    const sessionToken = uuidv4();
+
+    await client.query(
+      "INSERT INTO active_survey_sessions (survey_id, session_token) VALUES ($1, $2)",
+      [surveyId, sessionToken],
+    );
+
+    res.json({ sessionToken });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al iniciar sesión" });
+  } finally {
+    client.release();
+  }
+});
+
+// Finalizar sesión (al cerrar la pestaña o manualmente)
+app.post("/api/public/surveys/:link/end", async (req, res) => {
+  try {
+    const { sessionToken } = req.body;
+    if (!sessionToken) {
+      return res.status(400).json({ error: "Token requerido" });
+    }
+    await pool.query(
+      "DELETE FROM active_survey_sessions WHERE session_token = $1",
+      [sessionToken],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al finalizar sesión" });
+  }
+});
+
+// Limpieza de sesiones activas huérfanas (cada hora)
+const cleanStaleSessions = async () => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM active_survey_sessions WHERE last_activity < NOW() - INTERVAL '1 hour'",
+    );
+    if (result.rowCount > 0) {
+      console.log(
+        `Limpieza: ${result.rowCount} sesiones huérfanas eliminadas.`,
+      );
+    }
+  } catch (err) {
+    console.error("Error en limpieza de sesiones:", err);
+  }
+};
+setInterval(cleanStaleSessions, 60 * 60 * 1000);
+cleanStaleSessions(); // ejecutar al inicio
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
