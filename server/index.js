@@ -198,7 +198,13 @@ app.get("/api/public/surveys/:link", async (req, res) => {
     const survey = surveyRes.rows[0];
 
     // b. Validar Expiración
-    if (new Date() > new Date(survey.expiration_date)) {
+    const now = new Date();
+    // Establecer ambos a medianoche local para comparar solo el día
+    now.setHours(0, 0, 0, 0);
+    const expiration = new Date(survey.expiration_date);
+    expiration.setHours(0, 0, 0, 0);
+
+    if (now > expiration) {
       return res
         .status(410)
         .json({ error: "Esta encuesta ha finalizado", expired: true });
