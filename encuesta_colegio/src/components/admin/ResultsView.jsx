@@ -73,22 +73,19 @@ const ResultsView = () => {
       3: "3 - Neutral",
       4: "4 - De Acuerdo",
       5: "5 - Totalmente de Acuerdo",
-      SET: "SET (1)",
-      SEP: "SEP (0.5)",
-      NSE: "NSE (0)",
     };
 
-    const orderedKeys = ["1", "2", "3", "4", "5", "SET", "SEP", "NSE"];
+    const orderedKeys = ["1", "2", "3", "4", "5"];
     const globalTotals = {
       1: 0,
       2: 0,
       3: 0,
       4: 0,
       5: 0,
-      SET: 0,
-      SEP: 0,
-      NSE: 0,
     };
+
+    const Margin_Bottom = 20; // Margen inferior para evitar cortar contenido al agregar nueva página
+    const Page_Height = doc.internal.pageSize.height; // Altura total de la página
 
     // Título del reporte
     doc.setFontSize(18);
@@ -108,56 +105,75 @@ const ResultsView = () => {
 
     selectedSurvey.questions_analysis.forEach((q, index) => {
       // Título de la pregunta
-      doc.setFontSize(11);
-      doc.setTextColor(0, 50, 150);
-      doc.setFont("helvetica", "bold");
+      const questionText = `Pregunta ${index + 1}: ${q.question_text}`;
+      const splitQuestion = doc.splitTextToSize(questionText, 180);
 
-      // Verificamos si necesitamos nueva página
-      if (finalY > 270) {
-        doc.addPage();
-        finalY = 20;
-      }
-
-      doc.text(`Pregunta ${index + 1}: ${q.question_text}`, 14, finalY);
+      //Cálculo de altura ocupada por la pregunta
+      const lineHeight = 5.5;
+      const questionHeight = splitQuestion.length * lineHeight;
 
       // Preparamos datos
       const tableRows =
         q.data && q.data.length > 0
           ? q.data.map((item) => {
-            const raw = (item.name || "").toString();
-            const key = raw.replace("⭐", "").trim();
+              const raw = (item.name || "").toString();
+              const key = raw.replace("⭐", "").trim();
 
-            const label =
-              optionMap[key] || optionMap[key.toUpperCase()] || raw;
-            const cleanKey = key.toUpperCase();
-            if (globalTotals.hasOwnProperty(cleanKey)) {
-              globalTotals[cleanKey] += Number(item.value);
-            }
+              const label =
+                optionMap[key] || optionMap[key.toUpperCase()] || raw;
+              const cleanKey = key.toUpperCase();
+              if (globalTotals.hasOwnProperty(cleanKey)) {
+                globalTotals[cleanKey] += Number(item.value);
+              }
 
-            return [label, item.value.toString()];
-          })
+              return [label, item.value.toString()];
+            })
           : [["Sin datos", "0"]];
 
-      // --- AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL ---
-      // Pasamos 'doc' como primer argumento
+      //Calculo de altura estimada de la tabla
+      const tableRowCount = tableRows.length;
+      const estimateRowHeight = 8;
+      const tableHeaderHeight = 10;
+      const estimatedTableHeight =
+        tableHeaderHeight + tableRowCount * estimateRowHeight;
+
+      //Calculo de altura total necesaria para la pregunta
+      const totalNeededHeight = questionHeight + estimatedTableHeight + 15; // +15 para espacio extra
+
+      // Verificamos si necesitamos nueva página
+      if (finalY + totalNeededHeight > Page_Height - Margin_Bottom) {
+        doc.addPage();
+        finalY = 20;
+      }
+
+      //Dibuja la pregunta para la NNUEVA página
+      doc.setFontSize(11);
+      doc.setTextColor(0, 50, 150);
+      doc.setFont("helvetica", "bold");
+      doc.text(splitQuestion, 14, finalY);
+
+      finalY += questionHeight + 3; // Actualizamos finalY después de la pregunta
+
       autoTable(doc, {
-        startY: finalY + 5,
+        startY: finalY,
         head: [["Opción de Respuesta", "Cantidad de Votos"]],
         body: tableRows,
         theme: "striped",
         headStyles: { fillColor: [41, 128, 185] },
         margin: { left: 14, right: 14 },
         didDrawPage: (data) => {
-          finalY = data.cursor.y + 15;
+          finalY = data.cursor.y + 10;
         },
       });
 
       // Actualizamos finalY
-      finalY = doc.lastAutoTable.finalY + 15;
+      finalY = doc.lastAutoTable.finalY + 10;
     });
 
     // Tabla de resumen final
-    if (finalY > 270) {
+    const estimatedSummaryHeight = 150; // Estimación inicial de altura de tabla resumen
+
+    if (finalY + estimatedSummaryHeight > Page_Height - Margin_Bottom) {
       doc.addPage();
       finalY = 20;
     }
@@ -180,10 +196,27 @@ const ResultsView = () => {
       headStyles: { fillColor: [42, 62, 80] },
       columnStyles: {
         0: { cellWidth: 120 },
-        1: { cellWidth: "auto", halign: "center" },
+        1: { cellWidth: 60, halign: "center", fontStyle: "bold" },
       },
       margin: { left: 14, right: 14 },
+      didDrawPage: (data) => {
+        finalY = data.cursor.y + 15;
+      },
     });
+
+    //Número de página
+    const totalPages = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      const pageNumY = doc.internal.pageSize.height - 15;
+      doc.text(
+        `Página ${i} de ${totalPages}`,
+        doc.internal.pageSize.width - 35,
+        pageNumY,
+      );
+    }
 
     const today = new Date();
     const dateStr = `${today.getDate()}-${today.getMonth() + 1}-${today.getFullYear()}`;
@@ -203,22 +236,16 @@ const ResultsView = () => {
       3: "3 - Neutral",
       4: "4 - De Acuerdo",
       5: "5 - Totalmente de Acuerdo",
-      SET: "SET (1)",
-      SEP: "SEP (0.5)",
-      NSE: "NSE (0)",
     };
 
     //Lista para iterar en orden específico al final
-    const orderedKeys = ["1", "2", "3", "4", "5", "SET", "SEP", "NSE"];
+    const orderedKeys = ["1", "2", "3", "4", "5"];
     const globalTotals = {
       1: 0,
       2: 0,
       3: 0,
       4: 0,
       5: 0,
-      SET: 0,
-      SEP: 0,
-      NSE: 0,
     };
 
     //1. Se prepara la data en un formato plano
@@ -396,20 +423,22 @@ const ResultsView = () => {
             <div className="bg-white p-1 rounded-lg border flex shadow-sm mr-2">
               <button
                 onClick={() => setChartType("bar")}
-                className={`p-2 rounded-md transition-colors ${chartType === "bar"
-                  ? "bg-blue-100 text-blue-600"
-                  : "text-gray-400 hover:text-gray-600"
-                  }`}
+                className={`p-2 rounded-md transition-colors ${
+                  chartType === "bar"
+                    ? "bg-blue-100 text-blue-600"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
                 title="Ver gráfico de barras"
               >
                 <BarChartIcon size={20} />
               </button>
               <button
                 onClick={() => setChartType("pie")}
-                className={`p-2 rounded-md transition-colors ${chartType === "pie"
-                  ? "bg-blue-100 text-blue-600"
-                  : "text-gray-400 hover:text-gray-600"
-                  }`}
+                className={`p-2 rounded-md transition-colors ${
+                  chartType === "pie"
+                    ? "bg-blue-100 text-blue-600"
+                    : "text-gray-400 hover:text-gray-600"
+                }`}
                 title="Ver gráfico de torta"
               >
                 <PieChartIcon size={20} />
@@ -569,7 +598,9 @@ const ResultsView = () => {
             ))}
           </div>
         ) : (
-          <p className="text-gray-400 text-sm">No hay comentarios generales registrados.</p>
+          <p className="text-gray-400 text-sm">
+            No hay comentarios generales registrados.
+          </p>
         )}
       </div>
     </div>
