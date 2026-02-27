@@ -209,6 +209,11 @@ app.get("/api/public/surveys/:link", async (req, res) => {
     console.log("🔘 is_active:", survey.is_active); // si existe
 
     // b. Validar Expiración
+    if (new Date() > new Date(survey.expiration_date)) {
+      return res
+        .status(410)
+        .json({ error: "Esta encuesta ha finalizado", expired: true });
+    }
 
     // c. Buscar preguntas
     const questionsRes = await pool.query(
