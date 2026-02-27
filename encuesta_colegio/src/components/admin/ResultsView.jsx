@@ -402,7 +402,7 @@ const ResultsView = () => {
       <div className="mb-8">
         <button
           onClick={() => setSelectedSurvey(null)}
-          className="flex items-center gap-2 text-gray-500 hover:text-blue-600 font-medium mb-4 transition-colors"
+          className="flex items-center gap-2 text-gray-500 hover:text-blue-600 font-medium mb-4 transition-colors cursor-pointer"
         >
           <ArrowLeft size={20} /> Volver a la lista
         </button>
@@ -426,7 +426,7 @@ const ResultsView = () => {
                 className={`p-2 rounded-md transition-colors ${
                   chartType === "bar"
                     ? "bg-blue-100 text-blue-600"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-gray-400 hover:text-gray-600 cursor-pointer"
                 }`}
                 title="Ver gráfico de barras"
               >
@@ -437,7 +437,7 @@ const ResultsView = () => {
                 className={`p-2 rounded-md transition-colors ${
                   chartType === "pie"
                     ? "bg-blue-100 text-blue-600"
-                    : "text-gray-400 hover:text-gray-600"
+                    : "text-gray-400 hover:text-gray-600 cursor-pointer"
                 }`}
                 title="Ver gráfico de torta"
               >
@@ -448,13 +448,15 @@ const ResultsView = () => {
             {/* --- BLOQUE DE BOTONES DE EXPORTACIÓN --- */}
             <button
               onClick={generateExcel}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition shadow-sm font-medium cursor-pointer"
+              title="Exportar a Excel"
             >
               <FileSpreadsheet size={18} /> Excel
             </button>
             <button
               onClick={generatePDF}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition shadow-sm font-medium cursor-pointer"
+              title="Exportar a PDF"
             >
               <FileText size={18} /> PDF
             </button>
