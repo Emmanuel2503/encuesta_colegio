@@ -57,6 +57,8 @@ const EditSurvey = () => {
         setValue("target_audience", survey.target_audience);
         setValue("description", survey.description || "");
         setValue("expiration_date", survey.expiration_date?.slice(0, 16) || "");
+        console.log(survey.expiration_date?.slice(0, 16) || "");
+        console.log("survey.experation_date: ", survey.expiration_date);
         setValue("evaluated_name", survey.evaluated_name || "");
         setValue("subject", survey.subject || "");
 

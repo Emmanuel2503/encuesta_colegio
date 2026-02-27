@@ -209,11 +209,6 @@ app.get("/api/public/surveys/:link", async (req, res) => {
     console.log("🔘 is_active:", survey.is_active); // si existe
 
     // b. Validar Expiración
-    /*if (new Date() > new Date(survey.expiration_date)) {
-      return res
-        .status(410)
-        .json({ error: "Esta encuesta ha finalizado", expired: true });
-    }*/
 
     // c. Buscar preguntas
     const questionsRes = await pool.query(
@@ -726,6 +721,7 @@ app.put("/api/surveys/:id", async (req, res) => {
 
     // Actualizar datos de la encuesta (conversión a UTC para evitar problemas de zona horaria)
     const expirationUTC = new Date(expiration_date).toISOString();
+    console.log("expirationUTC: ", expirationUTC);
     await client.query(
       `UPDATE surveys SET title=$1, description=$2, target_audience=$3, evaluated_name=$4, subject=$5, expiration_date=$6 WHERE id=$7`,
       [

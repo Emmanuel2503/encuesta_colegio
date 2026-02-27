@@ -396,6 +396,7 @@ const AdminDashboard = () => {
                     <th className="px-6 py-4">Audiencia</th>
                     <th className="px-6 py-4 text-center">Participación</th>
                     <th className="px-6 py-4">Fecha de creación</th>
+                    <th className="px-6 py-4">Fecha de expiración</th>
                     <th className="px-6 py-4 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -456,6 +457,19 @@ const AdminDashboard = () => {
                             year: "numeric",
                           },
                         )}
+                      </td>
+
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {survey.expiration_date
+                          ? new Date(survey.expiration_date).toLocaleDateString(
+                              "es-ES",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
+                          : "N/A"}
                       </td>
 
                       <td className="px-6 py-4">
