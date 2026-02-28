@@ -38,9 +38,9 @@ function App() {
                 <div className="max-w-4xl mx-auto pt-6 px-6">
                   <a
                     href="/admin/dashboard"
-                    className="text-gray-500 hover:text-gray-800 text-sm"
+                    className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 mb-6 font-medium transition-colors"
                   >
-                    ← Volver al Panel
+                    ← Volver al Panel Principal
                   </a>
                 </div>
                 <SurveyBuilder />
@@ -54,9 +54,9 @@ function App() {
                 <div className="max-w-4xl mx-auto pt-6 px-6">
                   <a
                     href="/admin/dashboard"
-                    className="text-gray-500 hover:text-gray-800 text-sm"
+                    className="inline-flex items-center gap-2 text-gray-500 hover:text-blue-600 mb-6 font-medium transition-colors"
                   >
-                    ← Volver al Panel
+                    ← Volver al Panel Principal
                   </a>
                 </div>
                 <EditSurvey />
