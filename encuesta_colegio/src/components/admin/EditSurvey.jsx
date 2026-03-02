@@ -130,13 +130,19 @@ const EditSurvey = () => {
               </span>
               <input
                 {...register(`questions.${index}.text`, { required: true })}
+                disabled={!isEditable} //<-- DESHABILITAR SI NO ES EDITABLE
                 className="flex-1 border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors"
                 placeholder="Escribe el criterio..."
               />
               <button
-                type="button"
                 onClick={() => remove(index)}
-                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                type="button"
+                disabled={!isEditable} // ← Deshabilitar si no es editable
+                className={`text-gray-300 hover:text-red-500 transition-colors mt-2 ${
+                  !isEditable
+                    ? "cursor-not-allowed opacity-50 hover:text-gray-300"
+                    : ""
+                }`}
               >
                 <Trash2 size={18} />
               </button>
@@ -159,7 +165,8 @@ const EditSurvey = () => {
         onClick={() =>
           append({ category: sectionTitle, text: "", type: "ESCALA_DOCENTE" })
         }
-        className="mt-3 text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1"
+        disabled={!isEditable} // <-- DESHABILITAR SI NO ES EDITABLE
+        className={`mt-3 text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1 ${!isEditable ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <Plus size={16} /> Agregar criterio
       </button>
@@ -190,7 +197,6 @@ const EditSurvey = () => {
       <h2 className="text-2xl font-bold text-gray-800 mb-6">Editar Encuesta</h2>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-        {/* === Mismo formulario que en SurveyBuilder === */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="col-span-2">
             <label className="block text-sm font-bold text-gray-700 mb-1">
@@ -198,6 +204,7 @@ const EditSurvey = () => {
             </label>
             <select
               {...register("target_audience")}
+              disabled={!isEditable}
               className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
             >
               <option value="ESTUDIANTE_A_DOCENTE">Estudiante a Docente</option>
@@ -211,6 +218,7 @@ const EditSurvey = () => {
             </label>
             <input
               {...register("title", { required: true })}
+              disabled={!isEditable}
               placeholder="Ej: Evaluación Primer Lapso"
               className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
             />
@@ -234,6 +242,7 @@ const EditSurvey = () => {
               </label>
               <input
                 {...register("evaluated_name")}
+                disabled={!isEditable}
                 placeholder="Nombre y Apellido"
                 className="w-full p-2 border border-gray-300 rounded-lg bg-white"
               />
@@ -246,6 +255,7 @@ const EditSurvey = () => {
                 </label>
                 <input
                   {...register("evaluated_name")}
+                  disabled={!isEditable}
                   placeholder="Nombre y Apellido"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
@@ -256,6 +266,7 @@ const EditSurvey = () => {
                 </label>
                 <input
                   {...register("subject")}
+                  disabled={!isEditable}
                   placeholder="Matemáticas 5to Año"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
@@ -285,17 +296,20 @@ const EditSurvey = () => {
                       {...register(`questions.${index}.text`, {
                         required: true,
                       })}
+                      disabled={!isEditable}
                       className="w-full outline-none border-b border-gray-300 focus:border-blue-300 transition-colors py-1"
                       placeholder="Escribe la pregunta..."
                     />
                     <input
                       {...register(`questions.${index}.help_text`)}
+                      disabled={!isEditable}
                       className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none"
                       placeholder="Texto de ayuda (Opcional)"
                     />
                   </div>
                   <select
                     {...register(`questions.${index}.type`)}
+                    disabled={!isEditable}
                     className="text-sm bg-gray-50 border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-100 outline-none mt-1"
                   >
                     <option value="ESCALA_1_5">Estrellas (1-5)</option>
@@ -304,13 +318,19 @@ const EditSurvey = () => {
                   <button
                     onClick={() => remove(index)}
                     type="button"
-                    className="text-gray-300 hover:text-red-500 transition-colors mt-2"
+                    disabled={!isEditable} // ← AÑADIR
+                    className={`text-gray-300 hover:text-red-500 transition-colors mt-2 ${
+                      !isEditable
+                        ? "cursor-not-allowed opacity-50 hover:text-gray-300"
+                        : ""
+                    }`}
                   >
                     <Trash2 size={18} />
                   </button>
                   <input
                     type="hidden"
                     {...register(`questions.${index}.category`)}
+                    disabled={!isEditable}
                     value="General"
                   />
                 </div>
@@ -320,6 +340,7 @@ const EditSurvey = () => {
                 onClick={() =>
                   append({ category: "General", text: "", type: "ESCALA_1_5" })
                 }
+                disabled={!isEditable}
                 className="text-blue-600 font-bold flex items-center gap-2 mt-4 hover:bg-blue-50 p-2 rounded-lg transition-colors w-fit"
               >
                 <Plus size={18} /> Agregar Nueva Pregunta
@@ -334,7 +355,7 @@ const EditSurvey = () => {
             disabled={!isEditable}
             className={`px-8 py-3 rounded-lg font-bold shadow-lg transition-all ${
               isEditable
-                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 hover:-translate-y-0.5"
+                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 hover:-translate-y-0.5 cursor-pointer"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
