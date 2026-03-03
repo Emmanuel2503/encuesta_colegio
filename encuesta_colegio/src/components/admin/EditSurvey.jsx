@@ -95,7 +95,16 @@ const EditSurvey = () => {
     }
 
     try {
-      const payload = { ...data, userId: user.id, userRole: user.role };
+      const selectedDate = new Date(data.expiration_date);
+      const currentDate = new Date();
+      const updatedStatus = selectedDate > currentDate ? "ACTIVE" : "EXPIRED";
+
+      const payload = {
+        ...data,
+        userId: user.id,
+        userRole: user.role,
+        status: updatedStatus,
+      };
       await api.put(`/api/surveys/${id}`, payload);
 
       await Swal.fire({
