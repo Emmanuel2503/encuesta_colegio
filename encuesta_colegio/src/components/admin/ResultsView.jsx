@@ -67,22 +67,38 @@ const ResultsView = () => {
 
     const doc = new jsPDF();
 
-    const optionMap = {
-      1: "1 - Totalmente en Desacuerdo",
-      2: "2 - En Desacuerdo",
-      3: "3 - Neutral",
-      4: "4 - De Acuerdo",
-      5: "5 - Totalmente de Acuerdo",
-    };
+    const isDocente = selectedSurvey.target_audience === "ESTUDIANTE_A_DOCENTE";
+    const optionMap = isDocente
+      ? {
+          SET: "SET - Se evidencia Totalmente",
+          SEP: "SEP - Se evidencia Parcialmente",
+          NSE: "NSE - No se evidencia",
+        }
+      : {
+          1: "1 - Totalmente en Desacuerdo",
+          2: "2 - En Desacuerdo",
+          3: "3 - Neutral",
+          4: "4 - De Acuerdo",
+          5: "5 - Totalmente de Acuerdo",
+        };
 
-    const orderedKeys = ["1", "2", "3", "4", "5"];
-    const globalTotals = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
+    const orderedKeys = isDocente
+      ? ["SET", "SEP", "NSE"]
+      : ["1", "2", "3", "4", "5"];
+
+    const globalTotals = isDocente
+      ? {
+          SET: 0,
+          SEP: 0,
+          NSE: 0,
+        }
+      : {
+          1: 0,
+          2: 0,
+          3: 0,
+          4: 0,
+          5: 0,
+        };
 
     const Margin_Bottom = 20; // Margen inferior para evitar cortar contenido al agregar nueva página
     const Page_Height = doc.internal.pageSize.height; // Altura total de la página
@@ -482,29 +498,50 @@ const ResultsView = () => {
       {/* LEYENDA PARA LA VISTA DE RESULTADOS */}
       <div className="mb-8 bg-white p-4 rounded-xl shadow-sm border border-gray-100">
         <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
-          Leyenda de Escala (1-5)
+          {selectedSurvey.target_audience === "DOCENTE_A_DOCENTE"
+            ? "Leyenda de Escala Docente"
+            : "Leyenda de Escala (1-5)"}
         </h4>
         <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-400"></span>
-            <b>1:</b> Totalmente en Desacuerdo
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-orange-400"></span>
-            <b>2:</b> En Desacuerdo
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
-            <b>3:</b> Neutral
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-400"></span>
-            <b>4:</b> De Acuerdo
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            <b>5:</b> Totalmente de Acuerdo
-          </div>
+          {selectedSurvey.target_audience === "DOCENTE_A_DOCENTE" ? (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <b>SET:</b> Se evidencia Totalmente
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                <b>SEP:</b> Se evidencia Parcialmente
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                <b>NSE:</b> No se evidencia
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-400"></span>
+                <b>1:</b> Totalmente en Desacuerdo
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-orange-400"></span>
+                <b>2:</b> En Desacuerdo
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
+                <b>3:</b> Neutral
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                <b>4:</b> De Acuerdo
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <b>5:</b> Totalmente de Acuerdo
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -538,12 +575,26 @@ const ResultsView = () => {
                       <YAxis axisLine={false} tickLine={false} />
                       <Tooltip cursor={{ fill: "#f3f4f6" }} />
                       <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                        {question.data.map((entry, i) => (
-                          <Cell
-                            key={`cell-${i}`}
-                            fill={i >= 3 ? "#3b82f6" : "#9ca3af"}
-                          />
-                        ))}
+                        {question.data.map((entry, i) => {
+                          let fillColor = "#3b82f6";
+
+                          if (
+                            selectedSurvey.target_audience ===
+                            "DOCENTE_A_DOCENTE"
+                          ) {
+                            const nameStr = (entry.name || "")
+                              .toString()
+                              .toUpperCase();
+                            if (nameStr.includes("SET")) fillColor = "#22c55e";
+                            else if (nameStr.includes("SEP"))
+                              fillColor = "#eab308";
+                            else if (nameStr.includes("NSE"))
+                              fillColor = "#ef4444";
+                          } else {
+                            fillColor = i >= 3 ? "#3b82f6" : "#9ca3af";
+                          }
+                          return <Cell key={`cell-${i}`} fill={fillColor} />;
+                        })}
                       </Bar>
                     </BarChart>
                   ) : (
@@ -559,12 +610,26 @@ const ResultsView = () => {
                           `${name} ${(percent * 100).toFixed(0)}%`
                         }
                       >
-                        {question.data.map((entry, i) => (
-                          <Cell
-                            key={`cell-${i}`}
-                            fill={i >= 3 ? "#3b82f6" : "#9ca3af"}
-                          />
-                        ))}
+                        {question.data.map((entry, i) => {
+                          let fillColor = "#3b82f6";
+
+                          if (
+                            selectedSurvey.target_audience ===
+                            "DOCENTE_A_DOCENTE"
+                          ) {
+                            const nameStr = (entry.name || "")
+                              .toString()
+                              .toUpperCase();
+                            if (nameStr.includes("SET")) fillColor = "#22c55e";
+                            else if (nameStr.includes("SEP"))
+                              fillColor = "#eab308";
+                            else if (nameStr.includes("NSE"))
+                              fillColor = "#ef4444";
+                          } else {
+                            fillColor = i >= 3 ? "#3b82f6" : "#9ca3af";
+                          }
+                          return <Cell key={`cell-${i}`} fill={fillColor} />;
+                        })}
                       </Pie>
                       <Tooltip />
                       <Legend />

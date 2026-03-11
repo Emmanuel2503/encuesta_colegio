@@ -147,3 +147,12 @@ INSERT INTO admin_settings (pin_code) VALUES ('12345') ON CONFLICT DO NOTHING;
 INSERT INTO system_users (username, password_hash, role, full_name)
 VALUES ('editor', 'editor123', 'EDITOR', 'Editor de Encuestas')
 ON CONFLICT (username) DO NOTHING;
+
+-- 8. Sessiones activas
+CREATE TABLE IF NOT EXISTS active_survey_sessions (
+    id SERIAL PRIMARY KEY,
+    survey_id UUID NOT NULL REFERENCES surveys(id) ON DELETE CASCADE,
+    session_token UUID NOT NULL UNIQUE,
+    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

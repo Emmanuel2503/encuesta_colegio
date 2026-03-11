@@ -12,6 +12,14 @@ const SECCIONES_DOCENTE = [
   "Parte III – Aspectos académicos",
 ];
 
+//Convierte una fecha UTC (string ISO) a string local para datetime-local (YYYY-MM-DDTHH:mm)
+const formatToLocalDatetime = (dateString) => {
+  if (!dateString) return "";
+  const date = new Date(dateString);
+  const tzOffset = date.getTimezoneOffset() * 60000; // Offset en milisegundos
+  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
+};
+
 const EditSurvey = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -56,9 +64,10 @@ const EditSurvey = () => {
         setValue("title", survey.title);
         setValue("target_audience", survey.target_audience);
         setValue("description", survey.description || "");
-        setValue("expiration_date", survey.expiration_date?.slice(0, 16) || "");
-        console.log(survey.expiration_date?.slice(0, 16) || "");
-        console.log("survey.experation_date: ", survey.expiration_date);
+        setValue(
+          "expiration_date",
+          formatToLocalDatetime(survey.expiration_date),
+        );
         setValue("evaluated_name", survey.evaluated_name || "");
         setValue("subject", survey.subject || "");
 
@@ -98,13 +107,19 @@ const EditSurvey = () => {
       const selectedDate = new Date(data.expiration_date);
       const currentDate = new Date();
       const updatedStatus = selectedDate > currentDate ? "ACTIVE" : "EXPIRED";
+      const formatDateSelected = new Date(
+        selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000,
+      ).toISOString();
 
       const payload = {
         ...data,
+        expiration_date: formatDateSelected,
         userId: user.id,
         userRole: user.role,
         status: updatedStatus,
       };
+      console.log("Payload enviado al backend:", payload);
+
       await api.put(`/api/surveys/${id}`, payload);
 
       await Swal.fire({

@@ -221,6 +221,7 @@ app.get("/api/public/surveys/:link", async (req, res) => {
       [survey.id],
     );
     console.log("📋 preguntas:", questionsRes.rows.length);
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
     res.json({ ...survey, questions: questionsRes.rows });
   } catch (error) {
     console.error(error);
@@ -822,7 +823,7 @@ app.post("/api/public/surveys/:link/end", async (req, res) => {
 const cleanStaleSessions = async () => {
   try {
     const result = await pool.query(
-      "DELETE FROM active_survey_sessions WHERE last_activity < NOW() - INTERVAL '1 hour'",
+      "DELETE FROM active_survey_sessions WHERE last_activity < NOW() - INTERVAL '2 minutes'",
     );
     if (result.rowCount > 0) {
       console.log(
@@ -833,7 +834,7 @@ const cleanStaleSessions = async () => {
     console.error("Error en limpieza de sesiones:", err);
   }
 };
-setInterval(cleanStaleSessions, 60 * 60 * 1000);
+setInterval(cleanStaleSessions, 5 * 60 * 1000);
 cleanStaleSessions(); // ejecutar al inicio
 
 const PORT = process.env.PORT || 3000;

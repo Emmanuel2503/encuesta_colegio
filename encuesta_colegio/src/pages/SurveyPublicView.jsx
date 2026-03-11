@@ -64,8 +64,14 @@ const SurveyPublicView = () => {
     return () => {
       isMounted = false;
       if (sessionTokenRef.current) {
-        const data = JSON.stringify({ sessionToken: sessionTokenRef.current });
-        navigator.sendBeacon(`/api/public/surveys/${link}/end`, data);
+        /*const data = JSON.stringify({ sessionToken: sessionTokenRef.current });
+        navigator.sendBeacon(`/api/public/surveys/${link}/end`, data);*/
+        fetch(`/api/public/surveys/${link}/end`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sessionToken: sessionTokenRef.current }),
+          keepalive: true,
+        }).catch((err) => console.error("Error al finalizar sesión:", err));
       }
     };
   }, [link]);

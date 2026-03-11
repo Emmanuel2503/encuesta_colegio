@@ -5,6 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import api from "../../api/axiosConfig";
+import { localToUTC } from "../../utils/dateUtils";
 
 const SECCIONES_DOCENTE = [
   "Parte I – Área personal y social",
@@ -18,7 +19,6 @@ const SurveyBuilder = () => {
   const cloneData = location.state?.cloneData;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-
   const {
     register,
     control,
@@ -31,7 +31,6 @@ const SurveyBuilder = () => {
       title: "",
       target_audience: "ESTUDIANTE_A_DOCENTE",
       questions: [],
-
     },
   });
 
@@ -43,7 +42,6 @@ const SurveyBuilder = () => {
   });
 
   // Fetch Assignments on Mount
-
 
   useEffect(() => {
     if (cloneData) {
@@ -105,7 +103,12 @@ const SurveyBuilder = () => {
     try {
       // Logic for Professional Schema:
       // If user selected an assignment (ID), we auto-fill the legacy fields for backup
-      let payload = { ...data, expiration_date: data.expiration_date };
+      let payload = {
+        ...data,
+        expiration_date: localToUTC(data.expiration_date),
+      };
+
+      console.log("Payload before RBAC:", payload);
 
       // RBAC: Attach creator ID
       const storedUser = localStorage.getItem("user_data");
@@ -248,8 +251,6 @@ const SurveyBuilder = () => {
             />
           </div>
 
-
-
           {/* CAMPOS MANUALES (FALLBACK) */}
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
             <div className="col-span-2 md:col-span-1">
@@ -307,7 +308,9 @@ const SurveyBuilder = () => {
                   </span>
                   <div className="flex-1 space-y-2">
                     <input
-                      {...register(`questions.${index}.text`, { required: true })}
+                      {...register(`questions.${index}.text`, {
+                        required: true,
+                      })}
                       className="w-full outline-none border-b border-gray-300 focus:border-blue-300 transition-colors py-1"
                       placeholder="Escribe la pregunta..."
                     />
