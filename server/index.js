@@ -188,8 +188,12 @@ app.get("/api/public/surveys/:link", async (req, res) => {
     const { link } = req.params;
 
     // a. Buscar encuesta
-    const surveyRes = await pool.query(
+    /*const surveyRes = await pool.query(
       `SELECT * FROM surveys WHERE access_link = $1`,
+      [link],
+    );*/
+    const surveyRes = await pool.query(
+      `SELECT *, (DATE(expiration_date) < CURRENT_DATE) as is_expired FROM surveys WHERE access_link = $1`,
       [link],
     );
 
@@ -209,7 +213,8 @@ app.get("/api/public/surveys/:link", async (req, res) => {
     console.log("🔘 is_active:", survey.is_active); // si existe
 
     // b. Validar Expiración
-    if (new Date() > new Date(survey.expiration_date)) {
+    if (survey.is_expired) {
+      console.log("⏰ La encuesta ha expirado según la BD");
       return res
         .status(410)
         .json({ error: "Esta encuesta ha finalizado", expired: true });
@@ -665,6 +670,7 @@ app.put("/api/surveys/:id", async (req, res) => {
       evaluated_name,
       subject,
       expiration_date,
+      is_active,
       questions,
       userId,
       userRole,
@@ -684,12 +690,12 @@ app.put("/api/surveys/:id", async (req, res) => {
     let canEdit = false;
     if (userRole === "ADMIN") {
       canEdit = true;
-    } else if (
-      userRole === "EDITOR" &&
-      survey.created_by &&
-      survey.created_by.toString() === userId.toString()
-    ) {
-      canEdit = true;
+    } else if (userRole === "EDITOR") {
+      const creatorId = survey.created_by ? String(survey.created_by) : null;
+      const reqyuesterId = userId ? String(userId) : null;
+      if (creatorId && reqyuesterId && creatorId === reqyuesterId) {
+        canEdit = true;
+      }
     }
     if (!canEdit) {
       client.release();
@@ -725,18 +731,20 @@ app.put("/api/surveys/:id", async (req, res) => {
 
     await client.query("BEGIN");
 
-    // Actualizar datos de la encuesta (conversión a UTC para evitar problemas de zona horaria)
-    const expirationUTC = new Date(expiration_date).toISOString();
-    console.log("expirationUTC: ", expirationUTC);
+    // Actualizar datos de la encuesta
+    //const expirationUTC = new Date(expiration_date).toISOString();
+    //console.log("expirationUTC: ", expirationUTC);
+
     await client.query(
-      `UPDATE surveys SET title=$1, description=$2, target_audience=$3, evaluated_name=$4, subject=$5, expiration_date=$6 WHERE id=$7`,
+      `UPDATE surveys SET title=$1, description=$2, target_audience=$3, evaluated_name=$4, subject=$5, expiration_date=$6, is_active=$7 WHERE id=$8`,
       [
         title,
         description,
         target_audience,
         evaluated_name,
         subject,
-        expirationUTC,
+        expiration_date,
+        is_active,
         id,
       ],
     );
@@ -745,27 +753,29 @@ app.put("/api/surveys/:id", async (req, res) => {
     await client.query("DELETE FROM questions WHERE survey_id = $1", [id]);
 
     // Insertar nuevas preguntas
-    const questionQuery = `
+    if (questions && Array.isArray(questions)) {
+      const questionQuery = `
       INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
       VALUES ($1, $2, $3, $4, $5, $6)
     `;
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      await client.query(questionQuery, [
-        id,
-        q.text,
-        q.type,
-        i,
-        q.category || null,
-        q.help_text || null,
-      ]);
+      for (let i = 0; i < questions.length; i++) {
+        const q = questions[i];
+        await client.query(questionQuery, [
+          id,
+          q.text,
+          q.type,
+          i,
+          q.category || null,
+          q.help_text || null,
+        ]);
+      }
     }
 
     await client.query("COMMIT");
     res.json({ message: "Encuesta actualizada correctamente" });
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error(error);
+    console.error("Error al editar encuesta:", error);
     res.status(500).json({ error: "Error interno al editar encuesta" });
   } finally {
     client.release();

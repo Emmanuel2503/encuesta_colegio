@@ -104,19 +104,17 @@ const EditSurvey = () => {
     }
 
     try {
+      console.log("is_active antes de calcular:", data.is_active);
       const selectedDate = new Date(data.expiration_date);
       const currentDate = new Date();
-      const updatedStatus = selectedDate > currentDate ? "ACTIVE" : "EXPIRED";
-      const formatDateSelected = new Date(
-        selectedDate.getTime() - selectedDate.getTimezoneOffset() * 60000,
-      ).toISOString();
+      const updatedStatus = selectedDate > currentDate ? true : false;
 
       const payload = {
         ...data,
-        expiration_date: formatDateSelected,
-        userId: user.id,
-        userRole: user.role,
-        status: updatedStatus,
+        expiration_date: data.expiration_date,
+        userId: user?.id,
+        userRole: user?.role,
+        is_active: updatedStatus,
       };
       console.log("Payload enviado al backend:", payload);
 
