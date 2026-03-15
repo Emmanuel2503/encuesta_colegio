@@ -5,6 +5,7 @@ import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import toast from "react-hot-toast";
 import Swal from "sweetalert2";
 import api from "../../api/axiosConfig";
+import { localToUTC, utcToLocal } from "../../utils/dateUtils";
 
 const SECCIONES_DOCENTE = [
   "Parte I – Área personal y social",
@@ -64,10 +65,7 @@ const EditSurvey = () => {
         setValue("title", survey.title);
         setValue("target_audience", survey.target_audience);
         setValue("description", survey.description || "");
-        setValue(
-          "expiration_date",
-          formatToLocalDatetime(survey.expiration_date),
-        );
+        setValue("expiration_date", utcToLocal(survey.expiration_date));
         setValue("evaluated_name", survey.evaluated_name || "");
         setValue("subject", survey.subject || "");
 
@@ -104,17 +102,17 @@ const EditSurvey = () => {
     }
 
     try {
-      console.log("is_active antes de calcular:", data.is_active);
       const selectedDate = new Date(data.expiration_date);
       const currentDate = new Date();
-      const updatedStatus = selectedDate > currentDate ? true : false;
+      const isStillActive = selectedDate > currentDate;
+      const utcExpirationDate = localToUTC(data.expiration_date);
 
       const payload = {
         ...data,
-        expiration_date: data.expiration_date,
+        expiration_date: utcExpirationDate,
         userId: user?.id,
         userRole: user?.role,
-        is_active: updatedStatus,
+        is_active: isStillActive,
       };
       console.log("Payload enviado al backend:", payload);
 

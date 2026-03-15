@@ -38,8 +38,23 @@ const SurveyPublicView = () => {
       try {
         const res = await api.get(`/api/public/surveys/${link}`);
         if (isMounted) {
-          setSurvey(res.data);
-          // Iniciar sesión después de obtener la encuesta
+          const fetchedSurvey = res.data;
+          const expirationDate = new Date(fetchedSurvey.expiration_date);
+          const currentDate = new Date();
+
+          // Ignorar segundos para evitar problemas de timing y la hora del computador
+          currentDate.setSeconds(0, 0);
+          expirationDate.setSeconds(0, 0);
+
+          if (
+            currentDate > expirationDate ||
+            fetchedSurvey.is_active === false
+          ) {
+            setError(true);
+            return;
+          }
+
+          setSurvey(fetchedSurvey);
           startSession();
         }
       } catch (err) {
