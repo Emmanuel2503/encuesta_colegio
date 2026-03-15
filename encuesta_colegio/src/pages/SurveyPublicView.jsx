@@ -181,44 +181,77 @@ const SurveyPublicView = () => {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-8">
-          {/* LEYENDA TIPO ESTRELLAS */}
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 text-sm text-gray-700">
-            <h4 className="font-bold text-blue-800 mb-2">
-              Guía de Puntuación (Escala 1 al 5)
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div className="flex items-center gap-2">
-                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                  1
-                </span>
-                <span>Totalmente en Desacuerdo</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                  2
-                </span>
-                <span>En Desacuerdo</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                  3
-                </span>
-                <span>Neutral</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                  4
-                </span>
-                <span>De Acuerdo</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
-                  5
-                </span>
-                <span>Totalmente de Acuerdo</span>
+          {/* 1. LEYENDA TIPO ESTRELLAS para Estudiantes*/}
+          {survey.target_audience === "ESTUDIANTE_A_DOCENTE" && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 text-sm text-gray-700">
+              <h4 className="font-bold text-blue-800 mb-2">
+                Guía de Puntuación (Escala 1 al 5)
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                    1
+                  </span>
+                  <span>Totalmente en Desacuerdo</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                    2
+                  </span>
+                  <span>En Desacuerdo</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                    3
+                  </span>
+                  <span>Neutral</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                    4
+                  </span>
+                  <span>De Acuerdo</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold bg-white text-blue-600 border border-blue-200 w-6 h-6 rounded-full flex items-center justify-center text-xs">
+                    5
+                  </span>
+                  <span>Totalmente de Acuerdo</span>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* 2. Leyenda para Docentes (SET, SEP, NSE)*/}
+          {survey.target_audience === "DOCENTE_A_DOCENTE" && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6 text-sm text-gray-700">
+              <h4 className="font-bold text-blue-800 mb-3 text-center md:text-left">
+                Guía de Puntuación
+              </h4>
+              <div className="flex flex-col md:flex-row gap-2">
+                <div className="flex-1 flex flex-col items-center justify-center py-2 px-2 rounded border border-green-200 bg-green-50 text-green-700 text-xs font-bold shadow-sm">
+                  <span>SET - Totalmente</span>
+                  <span className="text-green-600 font-medium mt-1">
+                    Valor: 1 punto
+                  </span>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center py-2 px-2 rounded border border-yellow-200 bg-yellow-50 text-yellow-700 text-xs font-bold shadow-sm">
+                  <span>SEP - Parcialmente</span>
+                  <span className="text-yellow-600 font-medium mt-1">
+                    Valor: 0.5 puntos
+                  </span>
+                </div>
+
+                <div className="flex-1 flex flex-col items-center justify-center py-2 px-2 rounded border border-red-200 bg-red-50 text-red-700 text-xs font-bold shadow-sm">
+                  <span>NSE - No se evidencia</span>
+                  <span className="text-red-600 font-medium mt-1">
+                    Valor: 0 puntos
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {Object.entries(groupedQuestions).map(([category, questions]) => (
             <div key={category}>
