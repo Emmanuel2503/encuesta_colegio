@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS surveys (
     description TEXT,
     target_audience VARCHAR(50) NOT NULL, -- 'ESTUDIANTE_A_DOCENTE', 'DOCENTE_A_DOCENTE'
     access_link VARCHAR(255) UNIQUE NOT NULL,
-    expiration_date TIMESTAMPZ NOT NULL,
+    expiration_date TIMESTAMPTZ NOT NULL,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     

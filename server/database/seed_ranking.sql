@@ -61,7 +61,7 @@ BEGIN
         INSERT INTO teacher_assignments (teacher_id, subject_id, period_id, section_name) VALUES (v_teacher_id, v_subject_id, v_period_id, 'A') RETURNING id INTO v_assign_id;
         
         INSERT INTO surveys (title, description, target_audience, access_link, expiration_date, evaluated_name, subject)
-        VALUES ('Eval '||(rec->>'last'), 'Desc', 'ESTUDIANTE_A_DOCENTE', 'link-'||(rec->>'last'), NOW()+'1 month', (rec->>'name')||' '||(rec->>'last'), rec->>'materia') RETURNING id INTO v_survey_id;
+        VALUES ('Eval '||(rec->>'last'), 'Desc', 'ESTUDIANTE_A_DOCENTE', 'link-'||(rec->>'last'), NOW()+ INTERVAL'1 month', (rec->>'name')||' '||(rec->>'last'), rec->>'materia') RETURNING id INTO v_survey_id;
         
         -- Preguntas
         INSERT INTO questions (survey_id, question_text, question_type, order_index) VALUES (v_survey_id, 'Pregunta General', 'ESCALA_1_5', 1) RETURNING id INTO v_q1;
@@ -96,7 +96,7 @@ BEGIN
     -- ESCENARIO 1: MATEMÁTICAS (LO HACE EXCELENTE -> TARGET 4.8)
     -- ------------------------------------------------------------
     INSERT INTO surveys (title, description, target_audience, access_link, expiration_date, evaluated_name, subject)
-    VALUES ('Eval Matemáticas', 'Evalua al Prof Ricardo en Math', 'ESTUDIANTE_A_DOCENTE', 'ricardo-math', NOW()+'1 month', 'Ricardo Multifacetico', 'Matemáticas Avanzadas') RETURNING id INTO v_survey_good_id;
+    VALUES ('Eval Matemáticas', 'Evalua al Prof Ricardo en Math', 'ESTUDIANTE_A_DOCENTE', 'ricardo-math', NOW()+ INTERVAL '1 month', 'Ricardo Multifacetico', 'Matemáticas Avanzadas') RETURNING id INTO v_survey_good_id;
 
     INSERT INTO questions (survey_id, question_text, question_type, order_index) VALUES (v_survey_good_id, 'Dominio de Matemáticas', 'ESCALA_1_5', 1) RETURNING id INTO v_q1;
 
@@ -110,7 +110,7 @@ BEGIN
     -- ESCENARIO 2: HISTORIA (LO HACE MAL -> TARGET 2.0)
     -- ------------------------------------------------------------
     INSERT INTO surveys (title, description, target_audience, access_link, expiration_date, evaluated_name, subject)
-    VALUES ('Eval Historia', 'Evalua al Prof Ricardo en Historia', 'ESTUDIANTE_A_DOCENTE', 'ricardo-hist', NOW()+'1 month', 'Ricardo Multifacetico', 'Historia Básica') RETURNING id INTO v_survey_bad_id;
+    VALUES ('Eval Historia', 'Evalua al Prof Ricardo en Historia', 'ESTUDIANTE_A_DOCENTE', 'ricardo-hist', NOW()+ INTERVAL '1 month', 'Ricardo Multifacetico', 'Historia Básica') RETURNING id INTO v_survey_bad_id;
 
     INSERT INTO questions (survey_id, question_text, question_type, order_index) VALUES (v_survey_bad_id, 'Dominio de Historia', 'ESCALA_1_5', 1) RETURNING id INTO v_q1; -- Reusamos variable v_q1 para nueva ID
 

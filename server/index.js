@@ -193,7 +193,7 @@ app.get("/api/public/surveys/:link", async (req, res) => {
       [link],
     );*/
     const surveyRes = await pool.query(
-      `SELECT *, (DATE(expiration_date) < CURRENT_DATE) as is_expired FROM surveys WHERE access_link = $1`,
+      `SELECT *, (expiration_date < NOW()) as is_expired FROM surveys WHERE access_link = $1`,
       [link],
     );
 
@@ -216,7 +216,7 @@ app.get("/api/public/surveys/:link", async (req, res) => {
     if (survey.is_expired) {
       console.log("⏰ La encuesta ha expirado según la BD");
       return res
-        .status(410)
+        .status(404)
         .json({ error: "Esta encuesta ha finalizado", expired: true });
     }
 
