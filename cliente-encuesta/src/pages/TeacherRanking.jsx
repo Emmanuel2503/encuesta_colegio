@@ -223,9 +223,10 @@ const TeacherRanking = () => {
             </div>
           </div>
 
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                 <th className="px-6 py-4">#</th>
                 <th className="px-6 py-4">Docente</th>
                 <th className="px-6 py-4 w-1/3">Puntaje Promedio</th>
@@ -296,7 +297,8 @@ const TeacherRanking = () => {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
 
           {teachers.length === 0 && (
             <div className="p-12 text-center text-slate-400">

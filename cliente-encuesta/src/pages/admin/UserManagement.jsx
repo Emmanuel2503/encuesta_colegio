@@ -178,8 +178,9 @@ const UserManagement = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead>
+          <div className="overflow-x-auto w-full">
+            <table className="w-full text-left border-collapse">
+              <thead>
               <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase tracking-wider">
                 <th className="px-6 py-4">Usuario</th>
                 <th className="px-6 py-4">Nombre Completo</th>
@@ -241,7 +242,8 @@ const UserManagement = () => {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
           {usersList.length === 0 && (
             <div className="p-8 text-center text-slate-500">No hay usuarios registrados.</div>
           )}
