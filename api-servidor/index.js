@@ -858,6 +858,118 @@ const cleanStaleSessions = async () => {
 setInterval(cleanStaleSessions, 5 * 60 * 1000);
 cleanStaleSessions(); // ejecutar al inicio
 
+// --- GESTIÓN DE USUARIOS (CRUD) ---
+
+// 1. Obtener todos los usuarios
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    const userRole = req.query.userRole;
+    if (userRole !== 'ADMIN') {
+      return res.status(403).json({ error: "No autorizado. Se requiere rol ADMIN." });
+    }
+    const result = await pool.query(
+      "SELECT id, username, full_name, role, created_at FROM system_users ORDER BY id ASC"
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al obtener usuarios" });
+  }
+});
+
+// 2. Crear usuario
+app.post("/api/admin/users", async (req, res) => {
+  try {
+    const { username, full_name, role, password_hash, adminUserId } = req.body;
+    
+    // Validar permisos del solicitante
+    const adminCheck = await pool.query("SELECT role FROM system_users WHERE id = $1", [adminUserId]);
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+      return res.status(403).json({ error: "No autorizado." });
+    }
+
+    // Insertar
+    const result = await pool.query(
+      "INSERT INTO system_users (username, full_name, role, password_hash) VALUES ($1, $2, $3, $4) RETURNING id",
+      [username, full_name, role, password_hash]
+    );
+    res.json({ success: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') { // unique_violation
+      return res.status(400).json({ error: "El nombre de usuario ya existe." });
+    }
+    res.status(500).json({ error: "Error al crear usuario" });
+  }
+});
+
+// 3. Editar usuario
+app.put("/api/admin/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { username, full_name, role, password_hash, adminUserId } = req.body;
+    
+    // Validar permisos
+    const adminCheck = await pool.query("SELECT role FROM system_users WHERE id = $1", [adminUserId]);
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+      return res.status(403).json({ error: "No autorizado." });
+    }
+
+    // Regla: No degradar al admin maestro
+    if (username === 'admin' && role !== 'ADMIN') {
+      return res.status(403).json({ error: "El administrador maestro no puede perder su rol ADMIN." });
+    }
+
+    let query = "UPDATE system_users SET username = $1, full_name = $2, role = $3";
+    const values = [username, full_name, role];
+
+    if (password_hash && password_hash.trim() !== "") {
+      query += ", password_hash = $4 WHERE id = $5";
+      values.push(password_hash, id);
+    } else {
+      query += " WHERE id = $4";
+      values.push(id);
+    }
+
+    await pool.query(query, values);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    if (err.code === '23505') {
+      return res.status(400).json({ error: "El nombre de usuario ya está en uso." });
+    }
+    res.status(500).json({ error: "Error al actualizar usuario" });
+  }
+});
+
+// 4. Eliminar usuario
+app.delete("/api/admin/users/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { adminUserId } = req.body;
+
+    const adminCheck = await pool.query("SELECT role FROM system_users WHERE id = $1", [adminUserId]);
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') {
+      return res.status(403).json({ error: "No autorizado." });
+    }
+
+    // Bloqueos de seguridad
+    if (parseInt(id) === parseInt(adminUserId)) {
+       return res.status(403).json({ error: "No puedes eliminar tu propia cuenta." });
+    }
+    const targetQuery = await pool.query("SELECT username FROM system_users WHERE id = $1", [id]);
+    if (targetQuery.rows.length > 0 && targetQuery.rows[0].username === 'admin') {
+      return res.status(403).json({ error: "La cuenta maestra no puede ser eliminada." });
+    }
+
+    await pool.query("DELETE FROM system_users WHERE id = $1", [id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al eliminar usuario" });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend listo en http://localhost:${PORT}`);

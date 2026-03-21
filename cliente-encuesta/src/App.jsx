@@ -8,6 +8,7 @@ import SurveyPublicView from "./pages/SurveyPublicView";
 import TeacherRanking from "./pages/TeacherRanking"; // Nuevo
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 import EditSurvey from "./components/admin/EditSurvey";
+import UserManagement from "./pages/admin/UserManagement";
 
 function App() {
   return (
@@ -28,8 +29,8 @@ function App() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/ranking" element={<TeacherRanking />} />{" "}
-          {/* Nueva Ruta */}
+          <Route path="/admin/ranking" element={<TeacherRanking />} />
+          <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/resultados" element={<ResultsView />} />
           <Route
             path="/admin/crear"

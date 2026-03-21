@@ -305,7 +305,7 @@ const AdminDashboard = () => {
 
           <Link
             to="/admin/ranking"
-            className="flex items-center gap-5 p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-yellow-300 hover:shadow-md transition-all col-span-1 sm:col-span-2 md:col-span-1 lg:col-span-2 xl:col-span-2 group"
+            className="flex items-center gap-5 p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-yellow-300 hover:shadow-md transition-all group lg:col-span-1"
           >
             <div className="bg-yellow-50 text-yellow-600 p-3 rounded-xl group-hover:scale-110 transition-transform">
               <Award size={32} />
@@ -319,6 +319,25 @@ const AdminDashboard = () => {
               </p>
             </div>
           </Link>
+
+          {user?.role === "ADMIN" && (
+            <Link
+              to="/admin/users"
+              className="flex items-center gap-5 p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-300 hover:shadow-md transition-all group lg:col-span-1"
+            >
+              <div className="bg-indigo-50 text-indigo-600 p-3 rounded-xl group-hover:scale-110 transition-transform">
+                <Users size={32} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-800">
+                  Gestión Usuarios
+                </h3>
+                <p className="text-slate-500 text-sm">
+                  Control de accesos y roles
+                </p>
+              </div>
+            </Link>
+          )}
         </div>
 
         {/* TABLE SECTION */}
@@ -419,11 +438,10 @@ const AdminDashboard = () => {
 
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
-                            survey.target_audience === "ESTUDIANTE_A_DOCENTE"
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${survey.target_audience === "ESTUDIANTE_A_DOCENTE"
                               ? "bg-blue-50 text-blue-700 border-blue-100"
                               : "bg-purple-50 text-purple-700 border-purple-100"
-                          }`}
+                            }`}
                         >
                           {survey.target_audience === "ESTUDIANTE_A_DOCENTE"
                             ? "Estudiante"
@@ -462,13 +480,13 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 text-sm text-slate-500">
                         {survey.expiration_date
                           ? new Date(survey.expiration_date).toLocaleDateString(
-                              "es-ES",
-                              {
-                                day: "2-digit",
-                                month: "short",
-                                year: "numeric",
-                              },
-                            )
+                            "es-ES",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            },
+                          )
                           : "N/A"}
                       </td>
 
@@ -526,8 +544,8 @@ const AdminDashboard = () => {
 
                           {/* LOGICA DE BORRADO RBAC */}
                           {user?.role === "ADMIN" ||
-                          (user?.role === "EDITOR" &&
-                            survey.created_by == user.id) ? (
+                            (user?.role === "EDITOR" &&
+                              survey.created_by == user.id) ? (
                             <button
                               onClick={() => handleDelete(survey.id)}
                               className="p-2 hover:bg-white hover:text-red-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
