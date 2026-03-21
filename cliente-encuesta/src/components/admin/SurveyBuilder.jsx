@@ -30,6 +30,7 @@ const SurveyBuilder = () => {
     defaultValues: {
       title: "",
       target_audience: "ESTUDIANTE_A_DOCENTE",
+      national_id: "",
       questions: [],
     },
   });
@@ -48,6 +49,7 @@ const SurveyBuilder = () => {
       setValue("title", `${cloneData.title} (Copia)`);
       setValue("target_audience", cloneData.target_audience);
       setValue("description", cloneData.description || "");
+      setValue("national_id", cloneData.national_id || "");
 
       const formattedQuestions = cloneData.questions_analysis.map((q) => ({
         text: q.question_text,
@@ -253,16 +255,28 @@ const SurveyBuilder = () => {
 
           {/* CAMPOS MANUALES (FALLBACK) */}
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-sm font-bold text-gray-700 mb-1">
-                Nombre del Docente (Manual)
-              </label>
-              <input
-                {...register("evaluated_name")}
-                placeholder="Nombre y Apellido"
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white"
-              />
-            </div>
+            <>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Nombre del Docente (Manual)
+                </label>
+                <input
+                  {...register("evaluated_name")}
+                  placeholder="Nombre y Apellido"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Cédula Docente (Manual) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register("national_id", { required: true })}
+                  placeholder="Ej: V-12345678"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
+                />
+              </div>
+            </>
           ) : (
             // ESTUDIANTE A DOCENTE
             <>
@@ -274,6 +288,16 @@ const SurveyBuilder = () => {
                   {...register("evaluated_name")}
                   placeholder="Nombre y Apellido"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Cédula Prof. (Manual) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register("national_id", { required: true })}
+                  placeholder="Ej: V-12345678"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
                 />
               </div>
               <div className="col-span-2 md:col-span-1">

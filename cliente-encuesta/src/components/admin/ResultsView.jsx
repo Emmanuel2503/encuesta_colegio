@@ -129,22 +129,30 @@ const ResultsView = () => {
       const questionHeight = splitQuestion.length * lineHeight;
 
       // Preparamos datos
-      const tableRows =
-        q.data && q.data.length > 0
-          ? q.data.map((item) => {
-              const raw = (item.name || "").toString();
-              const key = raw.replace("⭐", "").trim();
+      let tableRows = [];
+      if (q.question_type === "TEXTO") {
+        tableRows =
+          q.data && q.data.length > 0
+            ? q.data.map((item) => [item.text, item.count.toString()])
+            : [["Sin respuestas libres", "-"]];
+      } else {
+        tableRows =
+          q.data && q.data.length > 0
+            ? q.data.map((item) => {
+                const raw = (item.name || "").toString();
+                const key = raw.replace("⭐", "").trim();
 
-              const label =
-                optionMap[key] || optionMap[key.toUpperCase()] || raw;
-              const cleanKey = key.toUpperCase();
-              if (globalTotals.hasOwnProperty(cleanKey)) {
-                globalTotals[cleanKey] += Number(item.value);
-              }
+                const label =
+                  optionMap[key] || optionMap[key.toUpperCase()] || raw;
+                const cleanKey = key.toUpperCase();
+                if (globalTotals.hasOwnProperty(cleanKey)) {
+                  globalTotals[cleanKey] += Number(item.value);
+                }
 
-              return [label, item.value.toString()];
-            })
-          : [["Sin datos", "0"]];
+                return [label, item.value.toString()];
+              })
+            : [["Sin datos", "0"]];
+      }
 
       //Calculo de altura estimada de la tabla
       const tableRowCount = tableRows.length;
@@ -170,9 +178,10 @@ const ResultsView = () => {
 
       finalY += questionHeight + 3; // Actualizamos finalY después de la pregunta
 
+      const headTitle = q.question_type === "TEXTO" ? ["Respuesta Libre", "Menciones"] : ["Opción de Respuesta", "Cantidad de Votos"];
       autoTable(doc, {
         startY: finalY,
-        head: [["Opción de Respuesta", "Cantidad de Votos"]],
+        head: [headTitle],
         body: tableRows,
         theme: "striped",
         headStyles: { fillColor: [41, 128, 185] },
@@ -284,24 +293,28 @@ const ResultsView = () => {
     //Iteración por preguntas
     selectedSurvey.questions_analysis.forEach((q, index) => {
       excelData.push({ A: `PREGUNTA ${index + 1}:`, B: q.question_text });
-      excelData.push({ A: "Opción", B: "Cantidad" }); //Cabecera de tabla interna
+      excelData.push({ A: q.question_type === "TEXTO" ? "Respuesta Libre" : "Opción", B: q.question_type === "TEXTO" ? "Menciones" : "Cantidad" }); //Cabecera de tabla interna
 
       if (q.data && q.data.length > 0) {
         q.data.forEach((item) => {
-          const rawItemName = (item.name || "").toString(); // Aseguramos que sea string
+          if (q.question_type === "TEXTO") {
+            excelData.push({ A: item.text, B: item.count });
+          } else {
+            const rawItemName = (item.name || "").toString(); // Aseguramos que sea string
 
-          const key = rawItemName.replace("⭐", "").trim(); // Eliminamos +P si existe
+            const key = rawItemName.replace("⭐", "").trim(); // Eliminamos +P si existe
 
-          const label = optionMap[key] || rawItemName;
+            const label = optionMap[key] || rawItemName;
 
-          excelData.push({ A: label, B: item.value });
+            excelData.push({ A: label, B: item.value });
 
-          if (globalTotals.hasOwnProperty(key)) {
-            globalTotals[key] += item.value;
+            if (globalTotals.hasOwnProperty(key)) {
+              globalTotals[key] += item.value;
+            }
           }
         });
       } else {
-        excelData.push({ A: "Sin datos", B: 0 });
+        excelData.push({ A: q.question_type === "TEXTO" ? "Sin respuestas libres" : "Sin datos", B: 0 });
       }
       excelData.push({ A: "", B: "" }); //Espacio entre preguntas
     });
@@ -560,7 +573,24 @@ const ResultsView = () => {
               </h3>
             </div>
 
-            {question.data && question.data.length > 0 ? (
+            {question.question_type === "TEXTO" ? (
+              <div className="max-h-64 overflow-y-auto w-full space-y-3 pr-2 custom-scrollbar">
+                {question.data && question.data.length > 0 ? (
+                  question.data.map((item, idx) => (
+                    <div key={idx} className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 italic flex justify-between gap-4">
+                      <span>"{item.text}"</span>
+                      {item.count > 1 && (
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full whitespace-nowrap self-start">x{item.count}</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="h-32 flex items-center justify-center bg-gray-50 rounded text-gray-400 text-sm">
+                    No hay respuestas libres registradas.
+                  </div>
+                )}
+              </div>
+            ) : question.data && question.data.length > 0 ? (
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   {chartType === "bar" ? (
@@ -639,7 +669,7 @@ const ResultsView = () => {
               </div>
             ) : (
               <div className="h-32 flex items-center justify-center bg-gray-50 rounded text-gray-400 text-sm">
-                Análisis de texto no disponible en gráfico
+                Análisis no disponible en gráfico
               </div>
             )}
           </div>

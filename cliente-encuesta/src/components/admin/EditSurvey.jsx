@@ -42,6 +42,7 @@ const EditSurvey = () => {
       description: "",
       expiration_date: "",
       evaluated_name: "",
+      national_id: "",
       subject: "",
       questions: [],
     },
@@ -67,6 +68,7 @@ const EditSurvey = () => {
         setValue("description", survey.description || "");
         setValue("expiration_date", utcToLocal(survey.expiration_date));
         setValue("evaluated_name", survey.evaluated_name || "");
+        setValue("national_id", survey.national_id || "");
         setValue("subject", survey.subject || "");
 
         const formattedQuestions = survey.questions.map((q) => ({
@@ -256,17 +258,30 @@ const EditSurvey = () => {
           </div>
 
           {targetAudience === "DOCENTE_A_DOCENTE" ? (
-            <div className="col-span-2 md:col-span-1">
-              <label className="block text-sm font-bold text-gray-700 mb-1">
-                Nombre del Docente (Manual)
-              </label>
-              <input
-                {...register("evaluated_name")}
-                disabled={!isEditable}
-                placeholder="Nombre y Apellido"
-                className="w-full p-2 border border-gray-300 rounded-lg bg-white"
-              />
-            </div>
+            <>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Nombre del Docente (Manual)
+                </label>
+                <input
+                  {...register("evaluated_name")}
+                  disabled={!isEditable}
+                  placeholder="Nombre y Apellido"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Cédula Docente (Manual) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register("national_id", { required: true })}
+                  disabled={!isEditable}
+                  placeholder="Ej: V-12345678"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
+                />
+              </div>
+            </>
           ) : (
             <>
               <div className="col-span-2 md:col-span-1">
@@ -278,6 +293,17 @@ const EditSurvey = () => {
                   disabled={!isEditable}
                   placeholder="Nombre y Apellido"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1">
+                  Cédula Prof. (Manual) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  {...register("national_id", { required: true })}
+                  disabled={!isEditable}
+                  placeholder="Ej: V-12345678"
+                  className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
                 />
               </div>
               <div className="col-span-2 md:col-span-1">

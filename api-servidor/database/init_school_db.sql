@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS surveys (
     -- Pero idealmente, el contexto está en el Envío (Submission). 
     -- Mantenemos estos como nulos para compatibilidad con tu código actual
     evaluated_name VARCHAR(150), 
+    national_id VARCHAR(20),
     subject VARCHAR(100), 
     created_by INTEGER
 );

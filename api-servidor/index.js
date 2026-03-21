@@ -80,6 +80,7 @@ app.post("/api/surveys", async (req, res) => {
       description,
       target_audience,
       evaluated_name,
+      national_id,
       subject,
       expiration_date,
       questions,
@@ -95,13 +96,14 @@ app.post("/api/surveys", async (req, res) => {
     // We allow explicit text values for evaluated_name/subject even if using professional schema
     // This supports "Hybrid Mode" (Manual text entry OR Professional ID)
     const surveyRes = await client.query(
-      `INSERT INTO surveys (title, description, target_audience, evaluated_name, subject, access_link, expiration_date, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+      `INSERT INTO surveys (title, description, target_audience, evaluated_name, national_id, subject, access_link, expiration_date, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
       [
         title,
         description,
         target_audience,
         evaluated_name,
+        national_id,
         subject,
         access_link,
         expiration_date,
@@ -420,6 +422,13 @@ app.get("/api/admin/surveys/:id/results", async (req, res) => {
           name: s.answer_text,
           value: parseInt(s.count),
         }));
+      } else if (q.question_type === "TEXTO") {
+        chartData = relevantStats
+          .filter((s) => s.answer_text && s.answer_text.trim() !== '')
+          .map((s) => ({
+            text: s.answer_text,
+            count: parseInt(s.count),
+          }));
       }
 
       return { ...q, data: chartData };
@@ -528,14 +537,14 @@ app.get("/api/reports/teachers-ranking", async (req, res) => {
     const query = `
       SELECT 
         MAX(s.evaluated_name) as full_name,  -- Display the "prettiest" version found
-        LOWER(TRIM(s.evaluated_name)) as teacher_id, -- Use lower case name as ID for routing
+        LOWER(TRIM(s.national_id)) as teacher_id, -- Use lower case cedula as ID for routing
         ROUND(AVG(a.answer_value), 2) as average_score,
         COUNT(DISTINCT s.id) as total_surveys
       FROM surveys s
       JOIN submissions sub ON s.id = sub.survey_id
       JOIN answers a ON sub.id = a.submission_id
-      WHERE a.answer_value IS NOT NULL AND s.evaluated_name IS NOT NULL
-      GROUP BY LOWER(TRIM(s.evaluated_name))
+      WHERE a.answer_value IS NOT NULL AND s.national_id IS NOT NULL AND s.national_id != ''
+      GROUP BY LOWER(TRIM(s.national_id))
       ORDER BY average_score DESC
     `;
 
@@ -560,7 +569,7 @@ app.get("/api/reports/teachers-ranking/:id/details", async (req, res) => {
       FROM surveys s
       JOIN submissions sub ON s.id = sub.survey_id
       JOIN answers a ON sub.id = a.submission_id
-      WHERE LOWER(TRIM(s.evaluated_name)) = LOWER(TRIM($1)) AND a.answer_value IS NOT NULL
+      WHERE LOWER(TRIM(s.national_id)) = LOWER(TRIM($1)) AND a.answer_value IS NOT NULL
       GROUP BY s.subject, TO_CHAR(s.created_at, 'YYYY-MM-DD')
       ORDER BY subject_average DESC
     `;
@@ -668,6 +677,7 @@ app.put("/api/surveys/:id", async (req, res) => {
       description,
       target_audience,
       evaluated_name,
+      national_id,
       subject,
       expiration_date,
       is_active,
@@ -736,12 +746,13 @@ app.put("/api/surveys/:id", async (req, res) => {
     //console.log("expirationUTC: ", expirationUTC);
 
     await client.query(
-      `UPDATE surveys SET title=$1, description=$2, target_audience=$3, evaluated_name=$4, subject=$5, expiration_date=$6, is_active=$7 WHERE id=$8`,
+      `UPDATE surveys SET title=$1, description=$2, target_audience=$3, evaluated_name=$4, national_id=$5, subject=$6, expiration_date=$7, is_active=$8 WHERE id=$9`,
       [
         title,
         description,
         target_audience,
         evaluated_name,
+        national_id,
         subject,
         expiration_date,
         is_active,
