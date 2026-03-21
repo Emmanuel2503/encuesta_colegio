@@ -2,7 +2,7 @@ import axios from "axios";
 
 // Creamos una instancia con la configuración base
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000", // Toma la URL del archivo .env
+  baseURL: import.meta.env.VITE_API_URL || "https://encuesta-colegio.onrender.com", // Toma la URL del archivo .env
   headers: {
     "Content-Type": "application/json",
   },
