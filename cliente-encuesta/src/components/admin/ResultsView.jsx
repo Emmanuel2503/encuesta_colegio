@@ -20,6 +20,7 @@ import {
   FileSpreadsheet,
   PieChart as PieChartIcon,
   BarChart as BarChartIcon,
+  Search,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../../api/axiosConfig"; // <--- CAMBIO IMPORTANTE
@@ -32,6 +33,7 @@ const ResultsView = () => {
   const [selectedSurvey, setSelectedSurvey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chartType, setChartType] = useState("bar"); // "bar" | "pie"
+  const [searchTerm, setSearchTerm] = useState("");
 
   // 1. Cargar la lista de encuestas
   useEffect(() => {
@@ -360,6 +362,14 @@ const ResultsView = () => {
 
   // --- VISTA 1: LISTADO ---
   if (!selectedSurvey) {
+    const filteredSurveys = surveys.filter((s) => {
+      const term = searchTerm.toLowerCase();
+      const titleMatch = s.title?.toLowerCase().includes(term);
+      const evaluatedMatch = s.evaluated_name?.toLowerCase().includes(term);
+      const idMatch = s.national_id?.toLowerCase().includes(term);
+      return titleMatch || evaluatedMatch || idMatch;
+    });
+
     return (
       <div className="max-w-6xl mx-auto p-8">
         <Link
@@ -369,22 +379,39 @@ const ResultsView = () => {
           <ArrowLeft size={20} /> Volver al Panel Principal
         </Link>
 
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-800">
-            Resultados Reales
-          </h2>
-          <p className="text-gray-500">
-            Selecciona una encuesta para ver sus métricas.
-          </p>
+        <div className="mb-8 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-800">
+              Resultados Reales
+            </h2>
+            <p className="text-gray-500 mt-1">
+              Selecciona una encuesta para ver sus métricas.
+            </p>
+          </div>
+          
+          <div className="relative w-full md:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar por título, evaluado o cédula..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all shadow-sm text-gray-700"
+            />
+          </div>
         </div>
 
         {surveys.length === 0 ? (
           <div className="p-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
             <p className="text-gray-400">No hay encuestas creadas todavía.</p>
           </div>
+        ) : filteredSurveys.length === 0 ? (
+          <div className="p-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
+            <p className="text-gray-400">No se encontraron encuestas con ese término de búsqueda.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {surveys.map((survey) => (
+            {filteredSurveys.map((survey) => (
               <div
                 key={survey.id}
                 onClick={() => handleSelectSurvey(survey.id)}
