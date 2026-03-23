@@ -67,9 +67,33 @@ const ResultsView = () => {
   const generatePDF = () => {
     if (!selectedSurvey) return;
 
-    const doc = new jsPDF();
+    let isDocente = selectedSurvey.target_audience === "DOCENTE_A_DOCENTE";
 
-    const isDocente = selectedSurvey.target_audience === "ESTUDIANTE_A_DOCENTE";
+    const firstValiQ = selectedSurvey.questions_analysis.find(
+      (q) => q.question_type !== "TEXTO" && q.data && q.data.length > 0,
+    );
+
+    if (firstValiQ) {
+      const sampleData = firstValiQ.data
+        .map((d) => (d.name || "").toString().toUpperCase())
+        .join(" ");
+      if (
+        sampleData.includes("SET") ||
+        sampleData.includes("SEP") ||
+        sampleData.includes("NSE")
+      ) {
+        isDocente = true;
+      } else if (
+        sampleData.includes("1") ||
+        sampleData.includes("2") ||
+        sampleData.includes("3") ||
+        sampleData.includes("4") ||
+        sampleData.includes("5")
+      ) {
+        isDocente = false;
+      }
+    }
+
     const optionMap = isDocente
       ? {
           SET: "SET - Se evidencia Totalmente",
@@ -102,13 +126,13 @@ const ResultsView = () => {
           5: 0,
         };
 
+    const doc = new jsPDF();
     const Margin_Bottom = 20; // Margen inferior para evitar cortar contenido al agregar nueva página
     const Page_Height = doc.internal.pageSize.height; // Altura total de la página
 
     // Título del reporte
     doc.setFontSize(18);
     doc.text("Reporte de Resultados", 14, 20);
-
     doc.setFontSize(12);
     doc.text(`Encuesta: ${selectedSurvey.title}`, 14, 30);
     doc.text(`Evaluado: ${selectedSurvey.evaluated_name || "N/A"}`, 14, 36);
@@ -142,13 +166,17 @@ const ResultsView = () => {
           q.data && q.data.length > 0
             ? q.data.map((item) => {
                 const raw = (item.name || "").toString();
-                const key = raw.replace("⭐", "").trim();
+                //const key = raw.replace(/⭐/g, "").replace(/\+P/g, "").trim();
+                const cleanKey = raw.toUpperCase();
 
-                const label =
-                  optionMap[key] || optionMap[key.toUpperCase()] || raw;
-                const cleanKey = key.toUpperCase();
-                if (globalTotals.hasOwnProperty(cleanKey)) {
-                  globalTotals[cleanKey] += Number(item.value);
+                const matcghedKey = orderedKeys.find((k) =>
+                  cleanKey.includes(k.toString()),
+                );
+
+                const label = matcghedKey ? optionMap[matcghedKey] : raw;
+
+                if (matcghedKey && globalTotals.hasOwnProperty(matcghedKey)) {
+                  globalTotals[matcghedKey] += Number(item.value);
                 }
 
                 return [label, item.value.toString()];
@@ -180,7 +208,10 @@ const ResultsView = () => {
 
       finalY += questionHeight + 3; // Actualizamos finalY después de la pregunta
 
-      const headTitle = q.question_type === "TEXTO" ? ["Respuesta Libre", "Menciones"] : ["Opción de Respuesta", "Cantidad de Votos"];
+      const headTitle =
+        q.question_type === "TEXTO"
+          ? ["Respuesta Libre", "Menciones"]
+          : ["Opción de Respuesta", "Cantidad de Votos"];
       autoTable(doc, {
         startY: finalY,
         head: [headTitle],
@@ -257,23 +288,65 @@ const ResultsView = () => {
   const generateExcel = () => {
     if (!selectedSurvey) return;
 
-    const optionMap = {
-      1: "1 - Totalmente en Desacuerdo",
-      2: "2 - En Desacuerdo",
-      3: "3 - Neutral",
-      4: "4 - De Acuerdo",
-      5: "5 - Totalmente de Acuerdo",
-    };
+    let isDocente = selectedSurvey.target_audience === "DOCENTE_A_DOCENTE";
+
+    const firstValiQ = selectedSurvey.questions_analysis.find(
+      (q) => q.question_type !== "TEXTO" && q.data && q.data.length > 0,
+    );
+
+    if (firstValiQ) {
+      const sampleData = firstValiQ.data
+        .map((d) => (d.name || "").toString().toUpperCase())
+        .join(" ");
+      if (
+        sampleData.includes("SET") ||
+        sampleData.includes("SEP") ||
+        sampleData.includes("NSE")
+      ) {
+        isDocente = true;
+      } else if (
+        sampleData.includes("1") ||
+        sampleData.includes("2") ||
+        sampleData.includes("3") ||
+        sampleData.includes("4") ||
+        sampleData.includes("5")
+      ) {
+        isDocente = false;
+      }
+    }
+
+    const optionMap = isDocente
+      ? {
+          SET: "SET - Se evidencia Totalmente",
+          SEP: "SEP - Se evidencia Parcialmente",
+          NSE: "NSE - No se evidencia",
+        }
+      : {
+          1: "1 - Totalmente en Desacuerdo",
+          2: "2 - En Desacuerdo",
+          3: "3 - Neutral",
+          4: "4 - De Acuerdo",
+          5: "5 - Totalmente de Acuerdo",
+        };
 
     //Lista para iterar en orden específico al final
-    const orderedKeys = ["1", "2", "3", "4", "5"];
-    const globalTotals = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-    };
+    const orderedKeys = isDocente
+      ? ["SET", "SEP", "NSE"]
+      : ["1", "2", "3", "4", "5"];
+
+    const globalTotals = isDocente
+      ? {
+          SET: 0,
+          SEP: 0,
+          NSE: 0,
+        }
+      : {
+          1: 0,
+          2: 0,
+          3: 0,
+          4: 0,
+          5: 0,
+        };
 
     //1. Se prepara la data en un formato plano
     const excelData = [];
@@ -295,7 +368,10 @@ const ResultsView = () => {
     //Iteración por preguntas
     selectedSurvey.questions_analysis.forEach((q, index) => {
       excelData.push({ A: `PREGUNTA ${index + 1}:`, B: q.question_text });
-      excelData.push({ A: q.question_type === "TEXTO" ? "Respuesta Libre" : "Opción", B: q.question_type === "TEXTO" ? "Menciones" : "Cantidad" }); //Cabecera de tabla interna
+      excelData.push({
+        A: q.question_type === "TEXTO" ? "Respuesta Libre" : "Opción",
+        B: q.question_type === "TEXTO" ? "Menciones" : "Cantidad",
+      }); //Cabecera de tabla interna
 
       if (q.data && q.data.length > 0) {
         q.data.forEach((item) => {
@@ -303,20 +379,31 @@ const ResultsView = () => {
             excelData.push({ A: item.text, B: item.count });
           } else {
             const rawItemName = (item.name || "").toString(); // Aseguramos que sea string
+            /*const key = rawItemName
+              .replace(/⭐/g, "")
+              .replace(/\+P/g, "")
+              .trim(); // Eliminamos +P si existe*/
+            const cleanKey = rawItemName.toUpperCase();
 
-            const key = rawItemName.replace("⭐", "").trim(); // Eliminamos +P si existe
+            const matchedKey = orderedKeys.find(
+              (k) => cleanKey,
+              includes(k.toString()),
+            );
 
-            const label = optionMap[key] || rawItemName;
+            const label = matchedKey ? optionMap[matchedKey] : rawItemName;
+            excelData.push({ A: label, B: item.value || 0 });
 
-            excelData.push({ A: label, B: item.value });
-
-            if (globalTotals.hasOwnProperty(key)) {
-              globalTotals[key] += item.value;
+            if (matchedKey && globalTotals.hasOwnProperty(matchedKey)) {
+              globalTotals[matchedKey] += Number(item.value || 0);
             }
           }
         });
       } else {
-        excelData.push({ A: q.question_type === "TEXTO" ? "Sin respuestas libres" : "Sin datos", B: 0 });
+        excelData.push({
+          A:
+            q.question_type === "TEXTO" ? "Sin respuestas libres" : "Sin datos",
+          B: 0,
+        });
       }
       excelData.push({ A: "", B: "" }); //Espacio entre preguntas
     });
@@ -388,9 +475,12 @@ const ResultsView = () => {
               Selecciona una encuesta para ver sus métricas.
             </p>
           </div>
-          
+
           <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
             <input
               type="text"
               placeholder="Buscar por título, evaluado o cédula..."
@@ -407,7 +497,9 @@ const ResultsView = () => {
           </div>
         ) : filteredSurveys.length === 0 ? (
           <div className="p-10 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-            <p className="text-gray-400">No se encontraron encuestas con ese término de búsqueda.</p>
+            <p className="text-gray-400">
+              No se encontraron encuestas con ese término de búsqueda.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -604,10 +696,15 @@ const ResultsView = () => {
               <div className="max-h-64 overflow-y-auto w-full space-y-3 pr-2 custom-scrollbar">
                 {question.data && question.data.length > 0 ? (
                   question.data.map((item, idx) => (
-                    <div key={idx} className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 italic flex justify-between gap-4">
+                    <div
+                      key={idx}
+                      className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 italic flex justify-between gap-4"
+                    >
                       <span>"{item.text}"</span>
                       {item.count > 1 && (
-                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full whitespace-nowrap self-start">x{item.count}</span>
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded-full whitespace-nowrap self-start">
+                          x{item.count}
+                        </span>
                       )}
                     </div>
                   ))
