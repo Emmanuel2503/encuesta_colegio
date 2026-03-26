@@ -258,10 +258,10 @@ const SurveyBuilder = () => {
             <>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Nombre del Docente (Manual)
+                  Nombre del Docente (Manual) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register("evaluated_name")}
+                  {...register("evaluated_name", { required: true })}
                   placeholder="Nombre y Apellido"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
@@ -271,8 +271,15 @@ const SurveyBuilder = () => {
                   Cédula Docente (Manual) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register("national_id", { required: true })}
-                  placeholder="Ej: V-12345678"
+                  type="number"
+                  min="0"
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e' || e.key === '+' || e.key === '.') {
+                      e.preventDefault();
+                    }
+                  }}
+                  {...register("national_id", { required: true, pattern: /^\d+$/ })}
+                  placeholder="Ej: 12345678"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
                 />
               </div>
@@ -282,10 +289,10 @@ const SurveyBuilder = () => {
             <>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Nombre Prof. (Manual)
+                  Nombre Prof. (Manual) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register("evaluated_name")}
+                  {...register("evaluated_name", { required: true })}
                   placeholder="Nombre y Apellido"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />
@@ -295,17 +302,24 @@ const SurveyBuilder = () => {
                   Cédula Prof. (Manual) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register("national_id", { required: true })}
-                  placeholder="Ej: V-12345678"
+                  type="number"
+                  min="0"
+                  onKeyDown={(e) => {
+                    if (e.key === '-' || e.key === 'e' || e.key === '+' || e.key === '.') {
+                      e.preventDefault();
+                    }
+                  }}
+                  {...register("national_id", { required: true, pattern: /^\d+$/ })}
+                  placeholder="Ej: 12345678"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
                 />
               </div>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Materia (Manual)
+                  Materia (Manual) <span className="text-red-500">*</span>
                 </label>
                 <input
-                  {...register("subject")}
+                  {...register("subject", { required: true })}
                   placeholder="Matemáticas 5to Año"
                   className="w-full p-2 border border-gray-300 rounded-lg bg-white"
                 />

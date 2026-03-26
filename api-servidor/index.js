@@ -88,6 +88,12 @@ app.post("/api/surveys", async (req, res) => {
       userId, // Extract userId from request
     } = req.body;
 
+    if (!title || title.trim() === '') return res.status(400).json({ error: "El título es obligatorio." });
+    if (!evaluated_name || evaluated_name.trim() === '') return res.status(400).json({ error: "El nombre del evaluado es obligatorio." });
+    if (!subject || subject.trim() === '') return res.status(400).json({ error: "La materia es obligatoria." });
+    if (!questions || !Array.isArray(questions) || questions.length === 0) return res.status(400).json({ error: "Debe haber al menos 1 pregunta." });
+    if (national_id && !/^\d+$/.test(national_id.toString().trim())) return res.status(400).json({ error: "La cédula debe contener solo números positivos." });
+
     const access_link = uuidv4();
 
     await client.query("BEGIN");
@@ -685,6 +691,12 @@ app.put("/api/surveys/:id", async (req, res) => {
       userId,
       userRole,
     } = req.body;
+
+    if (!title || title.trim() === '') return res.status(400).json({ error: "El título es obligatorio." });
+    if (!evaluated_name || evaluated_name.trim() === '') return res.status(400).json({ error: "El nombre del evaluado es obligatorio." });
+    if (!subject || subject.trim() === '') return res.status(400).json({ error: "La materia es obligatoria." });
+    if (!questions || !Array.isArray(questions) || questions.length === 0) return res.status(400).json({ error: "Debe haber al menos 1 pregunta." });
+    if (national_id && !/^\d+$/.test(national_id.toString().trim())) return res.status(400).json({ error: "La cédula debe contener solo números positivos." });
 
     // Verificar permisos (similar a DELETE)
     const surveyCheck = await client.query(
