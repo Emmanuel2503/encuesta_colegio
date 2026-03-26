@@ -7,9 +7,14 @@ import {
   Eye,
   Search,
   HelpCircle,
+  FileText, //Icono de PDF
+  FileSpreadsheet, //Icono de Excel
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../api/axiosConfig";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import * as XLSX from "xlsx";
 
 const TeacherRanking = () => {
   const [teachers, setTeachers] = useState([]);
@@ -82,6 +87,80 @@ const TeacherRanking = () => {
     if (score >= 4.0) return "text-green-600";
     if (score >= 3.0) return "text-yellow-600";
     return "text-red-600";
+  };
+
+  //Exportar PDF
+  const handleDownloadPDF = () => {
+    if (!selectedTeacher || teacherDetails.length === 0) return;
+
+    const doc = new jsPDF();
+
+    doc.setFontSize(18);
+    doc.text("Reporte de Desempeño Docente", 14, 22);
+
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Docente Evaluado: ${selectedTeacher.full_name}`, 14, 32);
+    doc.text(`Promedio Global: ${selectedTeacher.average_score} / 5.0`, 14, 38);
+    doc.text(`Total de Encuestas: ${selectedTeacher.total_surveys}`, 14, 44);
+    doc.text(`Fecha de emisión: ${new Date().toLocaleDateString()}`, 14, 50);
+
+    // Preparar datos para la tabla
+    const tableColumn = [
+      "Materia Evaluada",
+      "Puntaje Promedio",
+      "Total Opiniones",
+    ];
+    const tableRows = teacherDetails.map((detail) => [
+      detail.subject_name || "Evaluación General",
+      detail.subject_average.toString(),
+      detail.survey_count.toString(),
+    ]);
+
+    // Generar la tabla con autoTable
+    autoTable(doc, {
+      startY: 58,
+      head: [tableColumn],
+      body: tableRows,
+      theme: "grid",
+      headStyles: { fillColor: [37, 99, 235] },
+      styles: { fontSize: 10 },
+    });
+
+    // Guardar el PDF
+    doc.save(`Reporte_${selectedTeacher.full_name}.pdf`);
+  };
+
+  //Exportar Excel
+  const handleDownloadExcel = () => {
+    if (!selectedTeacher || teacherDetails.length === 0) return;
+
+    // 1. Dar formato a los datos para Excel
+    const exportData = teacherDetails.map((detail) => ({
+      "Materia Evaluada": detail.subject_name || "Evaluación General",
+      "Puntaje Promedio": detail.subject_average,
+      "Total Opiniones": detail.survey_count,
+    }));
+
+    // 2. Crear la hoja y el libro de trabajo
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+
+    // 3. Ajustar el ancho de las columnas (Opcional, pero se ve mejor)
+    const wscols = [
+      { wch: 30 }, // Ancho para Materia Evaluada
+      { wch: 15 }, // Ancho para Puntaje Promedio
+      { wch: 15 }, // Ancho para Total Opiniones
+    ];
+    worksheet["!cols"] = wscols;
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Resultados");
+
+    // 4. Descargar archivo
+    XLSX.writeFile(
+      workbook,
+      `Reporte_Docente_${selectedTeacher.full_name.replace(/\s+/g, "_")}.xlsx`,
+    );
   };
 
   if (loading) {
@@ -227,76 +306,76 @@ const TeacherRanking = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
-                <th className="px-6 py-4">#</th>
-                <th className="px-6 py-4">Docente</th>
-                <th className="px-6 py-4 w-1/3">Puntaje Promedio</th>
-                <th className="px-6 py-4 text-center">Muestra</th>
-                <th className="px-6 py-4 text-right">Acción</th>
-              </tr>
-            </thead>
-            <tbody>
-              {teachers.map((teacher, index) => (
-                <tr
-                  key={teacher.teacher_id}
-                  className="hover:bg-blue-50/50 transition-colors border-b border-slate-50 last:border-0"
-                >
-                  <td className="px-6 py-4 font-bold text-slate-400">
-                    {index + 1}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm">
-                        {teacher.full_name.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-bold text-slate-700">
-                          {teacher.full_name}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          Profesor Titular
-                        </p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`font-bold text-lg w-8 ${getScoreColor(teacher.average_score)}`}
-                      >
-                        {teacher.average_score}
-                      </span>
-                      <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${getBarColor(
-                            teacher.average_score,
-                          )}`}
-                          style={{
-                            width: `${(teacher.average_score / 5) * 100}%`,
-                          }}
-                        ></div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <span className="inline-block bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
-                      {teacher.total_surveys}
-                    </span>
-                    <span className="text-xs text-slate-300 block mt-1">
-                      opiniones
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <button
-                      onClick={() => setSelectedTeacher(teacher)}
-                      className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50"
-                      title="Ver Detalles"
-                    >
-                      <Eye size={20} />
-                    </button>
-                  </td>
+                  <th className="px-6 py-4">#</th>
+                  <th className="px-6 py-4">Docente</th>
+                  <th className="px-6 py-4 w-1/3">Puntaje Promedio</th>
+                  <th className="px-6 py-4 text-center">Muestra</th>
+                  <th className="px-6 py-4 text-right">Acción</th>
                 </tr>
-              ))}
-            </tbody>
+              </thead>
+              <tbody>
+                {teachers.map((teacher, index) => (
+                  <tr
+                    key={teacher.teacher_id}
+                    className="hover:bg-blue-50/50 transition-colors border-b border-slate-50 last:border-0"
+                  >
+                    <td className="px-6 py-4 font-bold text-slate-400">
+                      {index + 1}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold text-sm">
+                          {teacher.full_name.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-700">
+                            {teacher.full_name}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            Profesor Titular
+                          </p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`font-bold text-lg w-8 ${getScoreColor(teacher.average_score)}`}
+                        >
+                          {teacher.average_score}
+                        </span>
+                        <div className="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${getBarColor(
+                              teacher.average_score,
+                            )}`}
+                            style={{
+                              width: `${(teacher.average_score / 5) * 100}%`,
+                            }}
+                          ></div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-block bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full font-bold">
+                        {teacher.total_surveys}
+                      </span>
+                      <span className="text-xs text-slate-300 block mt-1">
+                        opiniones
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => setSelectedTeacher(teacher)}
+                        className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-full hover:bg-blue-50 cursor-pointer"
+                        title="Ver Detalles"
+                      >
+                        <Eye size={20} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
             </table>
           </div>
 
@@ -351,7 +430,7 @@ const TeacherRanking = () => {
                       >
                         <div className="flex justify-between items-center mb-1">
                           <span className="font-bold text-slate-700 text-sm">
-                            {detail.subject_name}
+                            {detail.subject_name || "Evaluación General"}
                           </span>
                           <span
                             className={`font-bold text-sm ${getScoreColor(detail.subject_average)}`}
@@ -380,9 +459,29 @@ const TeacherRanking = () => {
                 </div>
               )}
 
+              {/* NUEVO: Botones de Exportación agregados justo antes del botón Cerrar */}
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={detailsLoading || teacherDetails.length === 0}
+                  className="flex-1 flex items-center justify-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-50 font-semibold py-2.5 rounded-xl transition-colors text-sm cursor-pointer"
+                >
+                  <FileText size={18} />
+                  Exportar PDF
+                </button>
+                <button
+                  onClick={handleDownloadExcel}
+                  disabled={detailsLoading || teacherDetails.length === 0}
+                  className="flex-1 flex items-center justify-center gap-2 bg-green-50 hover:bg-green-100 text-green-700 disabled:opacity-50 font-semibold py-2.5 rounded-xl transition-colors text-sm cursor-pointer"
+                >
+                  <FileSpreadsheet size={18} />
+                  Exportar Excel
+                </button>
+              </div>
+
               <button
                 onClick={() => setSelectedTeacher(null)}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors mt-6"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl transition-colors mt-6 text-sm cursor-pointer"
               >
                 Cerrar
               </button>
