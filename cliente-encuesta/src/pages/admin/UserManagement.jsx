@@ -23,6 +23,7 @@ const UserManagement = () => {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const navigate = useNavigate();
 
@@ -85,6 +86,7 @@ const UserManagement = () => {
   };
 
   const onSubmit = async (data) => {
+    setIsSaving(true);
     try {
       if (editingUser) {
         // Enviar userId de quien edita para RBAC audit
@@ -94,6 +96,7 @@ const UserManagement = () => {
       } else {
         if (!data.password_hash) {
           toast.error("La contraseña es obligatoria para nuevos usuarios.");
+          setIsSaving(false);
           return;
         }
         await api.post("/api/admin/users", { ...data, adminUserId: currentUser.id });
@@ -104,6 +107,8 @@ const UserManagement = () => {
     } catch (error) {
       const msg = error.response?.data?.error || "Error al procesar la solicitud.";
       Swal.fire("Error", msg, "error");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -311,15 +316,17 @@ const UserManagement = () => {
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors"
+                  disabled={isSaving}
+                  className="px-5 py-2.5 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5"
+                  disabled={isSaving}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-all hover:-translate-y-0.5 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none"
                 >
-                  {editingUser ? "Guardar Cambios" : "Crear Cuenta"}
+                  {isSaving ? "Procesando..." : (editingUser ? "Guardar Cambios" : "Crear Cuenta")}
                 </button>
               </div>
             </form>

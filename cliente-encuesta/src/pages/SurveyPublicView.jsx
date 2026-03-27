@@ -16,6 +16,7 @@ const SurveyPublicView = () => {
   const [survey, setSurvey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [sessionToken, setSessionToken] = useState(null);
   const sessionTokenRef = useRef(sessionToken);
@@ -102,6 +103,7 @@ const SurveyPublicView = () => {
     : {};
 
   const onSubmit = async (data) => {
+    setIsSubmitting(true);
     const { general_comment, ...qData } = data;
     const formattedAnswers = survey.questions.map((q) => ({
       question_id: q.id,
@@ -124,6 +126,7 @@ const SurveyPublicView = () => {
       setSessionToken(null); // Limpiar localmente
     } catch (e) {
       alert("Error de conexión");
+      setIsSubmitting(false);
     }
   };
 
@@ -380,9 +383,14 @@ const SurveyPublicView = () => {
           <div className="pt-4">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition-all"
+              disabled={isSubmitting}
+              className={`w-full font-bold py-3 rounded-lg shadow-md transition-all ${
+                isSubmitting 
+                  ? "bg-gray-400 text-white cursor-not-allowed" 
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
             >
-              Enviar Evaluación
+              {isSubmitting ? "Enviando..." : "Enviar Evaluación"}
             </button>
           </div>
         </form>

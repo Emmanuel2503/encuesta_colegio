@@ -26,6 +26,7 @@ const EditSurvey = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [isEditable, setIsEditable] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState(null);
 
   const {
@@ -102,6 +103,8 @@ const EditSurvey = () => {
       toast.error("¡Agrega al menos una pregunta!");
       return;
     }
+    
+    setIsSaving(true);
 
     try {
       const selectedDate = new Date(data.expiration_date);
@@ -128,6 +131,7 @@ const EditSurvey = () => {
       });
       navigate("/admin/dashboard");
     } catch (error) {
+      setIsSaving(false);
       if (error.response?.status === 409) {
         Swal.fire("No se puede editar", error.response.data.error, "warning");
         navigate("/admin/dashboard");
@@ -412,14 +416,14 @@ const EditSurvey = () => {
         <div className="flex justify-end pt-6 border-t border-gray-200">
           <button
             type="submit"
-            disabled={!isEditable}
+            disabled={!isEditable || isSaving}
             className={`px-8 py-3 rounded-lg font-bold shadow-lg transition-all ${
-              isEditable
+              isEditable && !isSaving
                 ? "bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200 hover:-translate-y-0.5 cursor-pointer"
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
             }`}
           >
-            Guardar Cambios
+            {isSaving ? "Guardando..." : "Guardar Cambios"}
           </button>
         </div>
       </form>
