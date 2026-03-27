@@ -386,7 +386,12 @@ const SurveyPublicView = () => {
           <div className="pt-4">
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition-all"
+              disabled={isSubmitting}
+              className={`w-full font-bold py-3 rounded-lg shadow-md transition-all ${
+                isSubmitting
+                  ? "bg-gray-400 text-white cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              }`}
             >
               {isSubmitting ? "Enviando..." : "Enviar Evaluación"}
             </button>

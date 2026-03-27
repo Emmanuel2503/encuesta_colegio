@@ -196,7 +196,8 @@ const ResultsView = () => {
       const totalNeededHeight = questionHeight + estimatedTableHeight + 15; // +15 para espacio extra
 
       // Verificamos si necesitamos nueva página. En TEXTO somos mas precavidos con el margen.
-      const safeMarginBottom = q.question_type === "TEXTO" ? Margin_Bottom + 20 : Margin_Bottom;
+      const safeMarginBottom =
+        q.question_type === "TEXTO" ? Margin_Bottom + 20 : Margin_Bottom;
       if (finalY + totalNeededHeight > Page_Height - safeMarginBottom) {
         doc.addPage();
         finalY = 20;
@@ -381,15 +382,10 @@ const ResultsView = () => {
             excelData.push({ A: item.text, B: item.count });
           } else {
             const rawItemName = (item.name || "").toString(); // Aseguramos que sea string
-            /*const key = rawItemName
-              .replace(/⭐/g, "")
-              .replace(/\+P/g, "")
-              .trim(); // Eliminamos +P si existe*/
             const cleanKey = rawItemName.toUpperCase();
 
-            const matchedKey = orderedKeys.find(
-              (k) => cleanKey,
-              includes(k.toString()),
+            const matchedKey = orderedKeys.find((k) =>
+              cleanKey.includes(k.toString()),
             );
 
             const label = matchedKey ? optionMap[matchedKey] : rawItemName;
