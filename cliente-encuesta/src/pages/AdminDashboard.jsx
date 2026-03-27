@@ -438,10 +438,11 @@ const AdminDashboard = () => {
 
                       <td className="px-6 py-4">
                         <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${survey.target_audience === "ESTUDIANTE_A_DOCENTE"
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${
+                            survey.target_audience === "ESTUDIANTE_A_DOCENTE"
                               ? "bg-blue-50 text-blue-700 border-blue-100"
                               : "bg-purple-50 text-purple-700 border-purple-100"
-                            }`}
+                          }`}
                         >
                           {survey.target_audience === "ESTUDIANTE_A_DOCENTE"
                             ? "Estudiante"
@@ -480,13 +481,13 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 text-sm text-slate-500">
                         {survey.expiration_date
                           ? new Date(survey.expiration_date).toLocaleDateString(
-                            "es-ES",
-                            {
-                              day: "2-digit",
-                              month: "short",
-                              year: "numeric",
-                            },
-                          )
+                              "es-ES",
+                              {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              },
+                            )
                           : "N/A"}
                       </td>
 
@@ -532,20 +533,33 @@ const AdminDashboard = () => {
 
                           <div className="w-px h-6 bg-slate-200 mx-1"></div>
 
-                          <button
-                            onClick={() =>
-                              navigate(`/admin/editar/${survey.id}`)
-                            }
-                            className="p-2 hover:bg-white hover:text-blue-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
-                            title="Editar Encuesta"
-                          >
-                            <Edit size={18} />
-                          </button>
+                          {/* LOGICA DE EDICIÓN RBAC */}
+                          {user?.role === "ADMIN" ||
+                          (user?.role === "EDITOR" &&
+                            survey.created_by == user.id) ? (
+                            <button
+                              onClick={() =>
+                                navigate(`/admin/editar/${survey.id}`)
+                              }
+                              className="p-2 hover:bg-white hover:text-blue-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
+                              title="Editar Encuesta"
+                            >
+                              <Edit size={18} />
+                            </button>
+                          ) : (
+                            <button
+                              className="p-2 text-gray-300 cursor-not-allowed"
+                              title="Sin permisos para editar encuestas de Administradores"
+                              disabled
+                            >
+                              <ShieldCheck size={18} />
+                            </button>
+                          )}
 
                           {/* LOGICA DE BORRADO RBAC */}
                           {user?.role === "ADMIN" ||
-                            (user?.role === "EDITOR" &&
-                              survey.created_by == user.id) ? (
+                          (user?.role === "EDITOR" &&
+                            survey.created_by == user.id) ? (
                             <button
                               onClick={() => handleDelete(survey.id)}
                               className="p-2 hover:bg-white hover:text-red-600 hover:shadow-sm rounded-lg transition-all border border-transparent hover:border-slate-100"
