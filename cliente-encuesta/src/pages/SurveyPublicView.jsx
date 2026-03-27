@@ -267,6 +267,9 @@ const SurveyPublicView = () => {
                   <div key={q.id}>
                     <div className="flex items-center gap-2 mb-3">
                       <p className="text-gray-800 font-medium text-sm md:text-base">
+                        <span className="font-bold mr-1">
+                          {survey.questions.indexOf(q) + 1}.
+                        </span>{" "}
                         {q.question_text}{" "}
                         <span className="text-red-400">*</span>
                       </p>
@@ -383,12 +386,7 @@ const SurveyPublicView = () => {
           <div className="pt-4">
             <button
               type="submit"
-              disabled={isSubmitting}
-              className={`w-full font-bold py-3 rounded-lg shadow-md transition-all ${
-                isSubmitting 
-                  ? "bg-gray-400 text-white cursor-not-allowed" 
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
-              }`}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg shadow-md transition-all"
             >
               {isSubmitting ? "Enviando..." : "Enviar Evaluación"}
             </button>

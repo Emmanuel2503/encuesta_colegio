@@ -13,14 +13,6 @@ const SECCIONES_DOCENTE = [
   "Parte III – Aspectos académicos",
 ];
 
-//Convierte una fecha UTC (string ISO) a string local para datetime-local (YYYY-MM-DDTHH:mm)
-const formatToLocalDatetime = (dateString) => {
-  if (!dateString) return "";
-  const date = new Date(dateString);
-  const tzOffset = date.getTimezoneOffset() * 60000; // Offset en milisegundos
-  return new Date(date.getTime() - tzOffset).toISOString().slice(0, 16);
-};
-
 const EditSurvey = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -157,7 +149,11 @@ const EditSurvey = () => {
               <input
                 {...register(`questions.${index}.text`, { required: true })}
                 disabled={!isEditable} //<-- DESHABILITAR SI NO ES EDITABLE
-                className="flex-1 border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors"
+                className={`flex-1 border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors ${
+                  !isEditable
+                    ? "cursor-not-allowed text-gray-400 bg-gray-50 px-2 rounded-t"
+                    : ""
+                }`}
                 placeholder="Escribe el criterio..."
               />
               <button
@@ -192,7 +188,9 @@ const EditSurvey = () => {
           append({ category: sectionTitle, text: "", type: "ESCALA_DOCENTE" })
         }
         disabled={!isEditable} // <-- DESHABILITAR SI NO ES EDITABLE
-        className={`mt-3 text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1 ${!isEditable ? "opacity-50 cursor-not-allowed" : ""}`}
+        className={`mt-3 text-sm text-blue-500 hover:text-blue-700 font-medium flex items-center gap-1 ${
+          !isEditable ? "opacity-50 cursor-not-allowed" : ""
+        }`}
       >
         <Plus size={16} /> Agregar criterio
       </button>
@@ -231,7 +229,9 @@ const EditSurvey = () => {
             <select
               {...register("target_audience")}
               disabled={!isEditable}
-              className="w-full p-2 border border-gray-300 rounded-lg bg-gray-50 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+              className={`w-full p-2 border border-gray-300 rounded-lg ${
+                !isEditable ? "bg-gray-50" : "bg-white"
+              } focus:ring-2 focus:ring-blue-100 outline-none transition-all`}
             >
               <option value="ESTUDIANTE_A_DOCENTE">Estudiante a Docente</option>
               <option value="DOCENTE_A_DOCENTE">Directiva a Docente</option>
@@ -246,7 +246,9 @@ const EditSurvey = () => {
               {...register("title", { required: true })}
               disabled={!isEditable}
               placeholder="Ej: Evaluación Primer Lapso"
-              className="w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors"
+              className={`w-full p-2 border border-gray-300 rounded-lg focus:border-blue-500 outline-none transition-colors ${
+                !isEditable ? "bg-gray-50" : "bg-white"
+              }`}
             />
           </div>
 
@@ -265,31 +267,45 @@ const EditSurvey = () => {
             <>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Nombre del Docente (Manual) <span className="text-red-500">*</span>
+                  Nombre del Docente (Manual){" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   {...register("evaluated_name", { required: true })}
                   disabled={!isEditable}
                   placeholder="Nombre y Apellido"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                  className={`w-full p-2 border border-gray-300 rounded-lg ${
+                    !isEditable ? "bg-gray-50" : "bg-white"
+                  }`}
                 />
               </div>
               <div className="col-span-2 md:col-span-1">
                 <label className="block text-sm font-bold text-gray-700 mb-1">
-                  Cédula Docente (Manual) <span className="text-red-500">*</span>
+                  Cédula Docente (Manual){" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
                   min="0"
                   onKeyDown={(e) => {
-                    if (e.key === '-' || e.key === 'e' || e.key === '+' || e.key === '.') {
+                    if (
+                      e.key === "-" ||
+                      e.key === "e" ||
+                      e.key === "+" ||
+                      e.key === "."
+                    ) {
                       e.preventDefault();
                     }
                   }}
-                  {...register("national_id", { required: true, pattern: /^\d+$/ })}
+                  {...register("national_id", {
+                    required: true,
+                    pattern: /^\d+$/,
+                  })}
                   disabled={!isEditable}
                   placeholder="Ej: 12345678"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
+                  className={`w-full p-2 border border-gray-300 rounded-lg ${
+                    !isEditable ? "bg-gray-50" : "bg-white"
+                  } focus:border-blue-500 outline-none transition-colors`}
                 />
               </div>
             </>
@@ -303,7 +319,9 @@ const EditSurvey = () => {
                   {...register("evaluated_name", { required: true })}
                   disabled={!isEditable}
                   placeholder="Nombre y Apellido"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                  className={`w-full p-2 border border-gray-300 rounded-lg ${
+                    !isEditable ? "bg-gray-50" : "bg-white"
+                  }`}
                 />
               </div>
               <div className="col-span-2 md:col-span-1">
@@ -314,14 +332,24 @@ const EditSurvey = () => {
                   type="number"
                   min="0"
                   onKeyDown={(e) => {
-                    if (e.key === '-' || e.key === 'e' || e.key === '+' || e.key === '.') {
+                    if (
+                      e.key === "-" ||
+                      e.key === "e" ||
+                      e.key === "+" ||
+                      e.key === "."
+                    ) {
                       e.preventDefault();
                     }
                   }}
-                  {...register("national_id", { required: true, pattern: /^\d+$/ })}
+                  {...register("national_id", {
+                    required: true,
+                    pattern: /^\d+$/,
+                  })}
                   disabled={!isEditable}
                   placeholder="Ej: 12345678"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-white focus:border-blue-500 outline-none transition-colors"
+                  className={`w-full p-2 border border-gray-300 rounded-lg ${
+                    !isEditable ? "bg-gray-50" : "bg-white"
+                  } focus:border-blue-500 outline-none transition-colors`}
                 />
               </div>
               <div className="col-span-2 md:col-span-1">
@@ -332,7 +360,9 @@ const EditSurvey = () => {
                   {...register("subject", { required: true })}
                   disabled={!isEditable}
                   placeholder="Matemáticas 5to Año"
-                  className="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                  className={`w-full p-2 border border-gray-300 rounded-lg ${
+                    !isEditable ? "bg-gray-50" : "bg-white"
+                  }`}
                 />
               </div>
             </>
@@ -361,20 +391,26 @@ const EditSurvey = () => {
                         required: true,
                       })}
                       disabled={!isEditable}
-                      className="w-full outline-none border-b border-gray-300 focus:border-blue-300 transition-colors py-1"
+                      className={`w-full outline-none border-b border-gray-300 focus:border-blue-300 transition-colors py-1 ${
+                        !isEditable ? "bg-gray-50" : "bg-white"
+                      }`}
                       placeholder="Escribe la pregunta..."
                     />
                     <input
                       {...register(`questions.${index}.help_text`)}
                       disabled={!isEditable}
-                      className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none"
+                      className={`w-full text-xs text-gray-500 ${
+                        !isEditable ? "bg-gray-50" : "bg-white"
+                      } border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none`}
                       placeholder="Texto de ayuda (Opcional)"
                     />
                   </div>
                   <select
                     {...register(`questions.${index}.type`)}
                     disabled={!isEditable}
-                    className="text-sm bg-gray-50 border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-100 outline-none mt-1"
+                    className={`text-sm ${
+                      !isEditable ? "bg-gray-50" : "bg-white"
+                    } border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-100 outline-none mt-1`}
                   >
                     <option value="ESCALA_1_5">Estrellas (1-5)</option>
                     <option value="TEXTO">Texto Libre</option>
@@ -405,7 +441,9 @@ const EditSurvey = () => {
                   append({ category: "General", text: "", type: "ESCALA_1_5" })
                 }
                 disabled={!isEditable}
-                className="text-blue-600 font-bold flex items-center gap-2 mt-4 hover:bg-blue-50 p-2 rounded-lg transition-colors w-fit"
+                className={`text-blue-600 font-bold flex items-center gap-2 mt-4 hover:bg-blue-50 p-2 rounded-lg transition-colors w-fit ${
+                  !isEditable ? "cursor-not-allowed opacity-50" : ""
+                }`}
               >
                 <Plus size={18} /> Agregar Nueva Pregunta
               </button>
