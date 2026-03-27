@@ -22,6 +22,7 @@ const TeacherRanking = () => {
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [teacherDetails, setTeacherDetails] = useState([]);
   const [detailsLoading, setDetailsLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (selectedTeacher) {
@@ -68,13 +69,17 @@ const TeacherRanking = () => {
   // --- CÁLCULOS KPI ---
   const totalSurveys = teachers.reduce((acc, t) => acc + t.total_surveys, 0);
   const schoolAverage =
-    teachers.length > 0
+    totalSurveys > 0
       ? (
-          teachers.reduce((acc, t) => acc + t.average_score, 0) /
-          teachers.length
+          teachers.reduce((acc, t) => acc + (t.average_score * t.total_surveys), 0) /
+          totalSurveys
         ).toFixed(2)
-      : 0;
+      : "0.00";
   const topTeacher = teachers.length > 0 ? teachers[0] : null;
+
+  const filteredTeachers = teachers.filter((t) =>
+    t.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // --- LÓGICA DE COLOR DE BARRA ---
   const getBarColor = (score) => {
@@ -296,7 +301,10 @@ const TeacherRanking = () => {
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
+                type="text"
                 placeholder="Buscar docente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300 w-64"
               />
             </div>
@@ -314,7 +322,7 @@ const TeacherRanking = () => {
                 </tr>
               </thead>
               <tbody>
-                {teachers.map((teacher, index) => (
+                {filteredTeachers.map((teacher, index) => (
                   <tr
                     key={teacher.teacher_id}
                     className="hover:bg-blue-50/50 transition-colors border-b border-slate-50 last:border-0"
@@ -379,9 +387,9 @@ const TeacherRanking = () => {
             </table>
           </div>
 
-          {teachers.length === 0 && (
+          {filteredTeachers.length === 0 && (
             <div className="p-12 text-center text-slate-400">
-              No hay datos suficientes para generar el ranking aún.
+              No se encontraron docentes o no hay datos suficientes para generar el ranking aún.
             </div>
           )}
         </div>

@@ -50,6 +50,8 @@ const SurveyBuilder = () => {
       setValue("target_audience", cloneData.target_audience);
       setValue("description", cloneData.description || "");
       setValue("national_id", cloneData.national_id || "");
+      setValue("subject", cloneData.subject || "");
+      setValue("evaluated_name", cloneData.evaluated_name || "");
 
       const formattedQuestions = cloneData.questions_analysis.map((q) => ({
         text: q.question_text,

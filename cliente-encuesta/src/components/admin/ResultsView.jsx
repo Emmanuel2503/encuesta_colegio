@@ -186,7 +186,8 @@ const ResultsView = () => {
 
       //Calculo de altura estimada de la tabla
       const tableRowCount = tableRows.length;
-      const estimateRowHeight = 8;
+      // Las preguntas de TEXTO ocupan más por salto de línea
+      const estimateRowHeight = q.question_type === "TEXTO" ? 25 : 8;
       const tableHeaderHeight = 10;
       const estimatedTableHeight =
         tableHeaderHeight + tableRowCount * estimateRowHeight;
@@ -194,8 +195,9 @@ const ResultsView = () => {
       //Calculo de altura total necesaria para la pregunta
       const totalNeededHeight = questionHeight + estimatedTableHeight + 15; // +15 para espacio extra
 
-      // Verificamos si necesitamos nueva página
-      if (finalY + totalNeededHeight > Page_Height - Margin_Bottom) {
+      // Verificamos si necesitamos nueva página. En TEXTO somos mas precavidos con el margen.
+      const safeMarginBottom = q.question_type === "TEXTO" ? Margin_Bottom + 20 : Margin_Bottom;
+      if (finalY + totalNeededHeight > Page_Height - safeMarginBottom) {
         doc.addPage();
         finalY = 20;
       }
