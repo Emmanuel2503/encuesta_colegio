@@ -560,6 +560,7 @@ const ResultsView = () => {
             </h1>
             <p className="text-gray-500 mt-1">
               Evaluado: <b>{selectedSurvey.evaluated_name || "N/A"}</b> |
+              Cédula: <b>{selectedSurvey.national_id || "N/A"}</b> |
               Materia: <b>{selectedSurvey.subject || "N/A"}</b>
             </p>
           </div>

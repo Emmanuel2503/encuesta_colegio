@@ -78,7 +78,8 @@ const TeacherRanking = () => {
   const topTeacher = teachers.length > 0 ? teachers[0] : null;
 
   const filteredTeachers = teachers.filter((t) =>
-    t.full_name.toLowerCase().includes(searchTerm.toLowerCase())
+    t.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (t.teacher_id && t.teacher_id.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   // --- LÓGICA DE COLOR DE BARRA ---
@@ -302,7 +303,7 @@ const TeacherRanking = () => {
               />
               <input
                 type="text"
-                placeholder="Buscar docente..."
+                placeholder="Buscar por nombre o cédula..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-300 w-64"
