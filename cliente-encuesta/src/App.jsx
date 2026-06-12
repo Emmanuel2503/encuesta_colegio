@@ -9,6 +9,9 @@ import TeacherRanking from "./pages/TeacherRanking"; // Nuevo
 import ProtectedRoute from "./components/admin/ProtectedRoute";
 import EditSurvey from "./components/admin/EditSurvey";
 import UserManagement from "./pages/admin/UserManagement";
+import SurveyGroupView from "./pages/SurveyGroupView";
+import SurveyGroupManager from "./pages/admin/SurveyGroupManager";
+import SurveyGroupForm from "./pages/admin/SurveyGroupForm";
 
 function App() {
   return (
@@ -26,11 +29,15 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<AdminLogin />} />
         <Route path="/encuesta/:link" element={<SurveyPublicView />} />
+        <Route path="/grupo/:link" element={<SurveyGroupView />} />
 
         <Route element={<ProtectedRoute />}>
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/ranking" element={<TeacherRanking />} />
           <Route path="/admin/users" element={<UserManagement />} />
+          <Route path="/admin/grupos" element={<SurveyGroupManager />} />
+          <Route path="/admin/grupos/nuevo" element={<SurveyGroupForm />} />
+          <Route path="/admin/grupos/editar/:id" element={<SurveyGroupForm />} />
           <Route path="/admin/resultados" element={<ResultsView />} />
           <Route
             path="/admin/crear"

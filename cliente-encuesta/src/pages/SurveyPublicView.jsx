@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import api from "../api/axiosConfig";
 import {
@@ -9,10 +9,14 @@ import {
   Clock,
   AlertCircle,
   Info,
+  Loader2,
 } from "lucide-react";
 
 const SurveyPublicView = () => {
   const { link } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const groupState = location.state;
   const [survey, setSurvey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -123,7 +127,21 @@ const SurveyPublicView = () => {
         sessionToken, // Incluir el token
       });
       setSubmitted(true);
-      setSessionToken(null); // Limpiar localmente
+      setSessionToken(null);
+
+      if (groupState?.groupId && groupState?.surveyId) {
+        const storageKey = `group_progress_${groupState.groupId}`;
+        const existing = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        if (!existing.includes(groupState.surveyId)) {
+          existing.push(groupState.surveyId);
+          localStorage.setItem(storageKey, JSON.stringify(existing));
+        }
+        setTimeout(() => {
+          navigate(`/grupo/${groupState.groupLink}`, {
+            state: { justCompleted: true },
+          });
+        }, 2000);
+      }
     } catch (e) {
       alert("Error de conexión");
       setIsSubmitting(false);
@@ -151,6 +169,12 @@ const SurveyPublicView = () => {
           <p className="text-gray-500 mt-2">
             Tu evaluación ha sido registrada exitosamente.
           </p>
+          {groupState?.groupLink && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-blue-600">
+              <Loader2 size={16} className="animate-spin" />
+              Regresando a la lista de profesores...
+            </div>
+          )}
         </div>
       </div>
     );

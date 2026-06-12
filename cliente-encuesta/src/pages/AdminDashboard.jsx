@@ -17,6 +17,7 @@ import {
   Award, // Nuevo icono
   ShieldCheck,
   Edit, // Nuevo icono
+  Layers,
 } from "lucide-react";
 import api from "../api/axiosConfig";
 import toast from "react-hot-toast"; // Notificaciones ligeras
@@ -300,6 +301,19 @@ const AdminDashboard = () => {
               <p className="text-slate-500 text-sm">
                 Analizar gráficos y resultados
               </p>
+            </div>
+          </Link>
+
+          <Link
+            to="/admin/grupos"
+            className="flex items-center gap-5 p-6 bg-white rounded-2xl shadow-sm border border-slate-200 hover:border-green-300 hover:shadow-md transition-all group"
+          >
+            <div className="bg-green-50 text-green-600 p-3 rounded-xl group-hover:scale-110 transition-transform">
+              <Layers size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold text-slate-800">Grupos por Año</h3>
+              <p className="text-slate-500 text-sm">Un enlace para todo el curso</p>
             </div>
           </Link>
 
