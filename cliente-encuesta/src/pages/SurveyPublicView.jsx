@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import api from "../api/axiosConfig";
 import {
@@ -9,10 +9,14 @@ import {
   Clock,
   AlertCircle,
   Info,
+  Loader2,
 } from "lucide-react";
 
 const SurveyPublicView = () => {
   const { link } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const groupState = location.state;
   const [survey, setSurvey] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
@@ -123,7 +127,21 @@ const SurveyPublicView = () => {
         sessionToken, // Incluir el token
       });
       setSubmitted(true);
-      setSessionToken(null); // Limpiar localmente
+      setSessionToken(null);
+
+      if (groupState?.groupId && groupState?.surveyId) {
+        const storageKey = `group_progress_${groupState.groupId}`;
+        const existing = JSON.parse(localStorage.getItem(storageKey) || "[]");
+        if (!existing.includes(groupState.surveyId)) {
+          existing.push(groupState.surveyId);
+          localStorage.setItem(storageKey, JSON.stringify(existing));
+        }
+        setTimeout(() => {
+          navigate(`/grupo/${groupState.groupLink}`, {
+            state: { justCompleted: true },
+          });
+        }, 2000);
+      }
     } catch (e) {
       alert("Error de conexión");
       setIsSubmitting(false);
@@ -151,6 +169,12 @@ const SurveyPublicView = () => {
           <p className="text-gray-500 mt-2">
             Tu evaluación ha sido registrada exitosamente.
           </p>
+          {groupState?.groupLink && (
+            <div className="mt-4 flex items-center justify-center gap-2 text-sm text-blue-600">
+              <Loader2 size={16} className="animate-spin" />
+              Regresando a la lista de profesores...
+            </div>
+          )}
         </div>
       </div>
     );
@@ -292,17 +316,17 @@ const SurveyPublicView = () => {
                       <div className="flex flex-wrap gap-2">
                         {[
                           {
-                            l: "SET - Totalmente",
+                            l: q.scale_labels?.["1"] || "SET - Totalmente",
                             v: 1,
                             c: "peer-checked:bg-green-600 peer-checked:border-green-600",
                           },
                           {
-                            l: "SEP - Parcialmente",
+                            l: q.scale_labels?.["0.5"] || "SEP - Parcialmente",
                             v: 0.5,
                             c: "peer-checked:bg-yellow-500 peer-checked:border-yellow-500",
                           },
                           {
-                            l: "NSE - No se evidencia",
+                            l: q.scale_labels?.["0"] || "NSE - No se evidencia",
                             v: 0,
                             c: "peer-checked:bg-red-500 peer-checked:border-red-500",
                           },
@@ -331,9 +355,9 @@ const SurveyPublicView = () => {
 
                     {/* OPCIONES TIPO ESTRELLAS */}
                     {q.question_type === "ESCALA_1_5" && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         {[1, 2, 3, 4, 5].map((v) => (
-                          <label key={v} className="cursor-pointer">
+                          <label key={v} className="cursor-pointer flex flex-col items-center gap-1">
                             <input
                               type="radio"
                               value={v}
@@ -345,6 +369,11 @@ const SurveyPublicView = () => {
                             <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 font-bold hover:bg-blue-50 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all">
                               {v}
                             </div>
+                            {q.scale_labels?.[String(v)] && (
+                              <span className="text-xs text-gray-400 text-center max-w-[60px] leading-tight">
+                                {q.scale_labels[String(v)]}
+                              </span>
+                            )}
                           </label>
                         ))}
                       </div>

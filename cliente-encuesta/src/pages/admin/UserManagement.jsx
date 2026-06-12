@@ -23,6 +23,7 @@ const UserManagement = () => {
   // Modal state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [editingPermissions, setEditingPermissions] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
   const navigate = useNavigate();
@@ -32,6 +33,7 @@ const UserManagement = () => {
     handleSubmit,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm();
 
@@ -72,9 +74,11 @@ const UserManagement = () => {
       setValue("full_name", userToEdit.full_name);
       setValue("role", userToEdit.role);
       setValue("password_hash", ""); // Empty indicating no change unless typed
+      setEditingPermissions(userToEdit.permissions || {});
     } else {
       reset();
       setValue("role", "EDITOR"); // default
+      setEditingPermissions({});
     }
     setIsModalOpen(true);
   };
@@ -82,6 +86,7 @@ const UserManagement = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingUser(null);
+    setEditingPermissions({});
     reset();
   };
 
@@ -89,9 +94,16 @@ const UserManagement = () => {
     setIsSaving(true);
     try {
       if (editingUser) {
-        // Enviar userId de quien edita para RBAC audit
         const payload = { ...data, adminUserId: currentUser.id };
         await api.put(`/api/admin/users/${editingUser.id}`, payload);
+
+        if ((data.role || editingUser.role) === "EDITOR") {
+          await api.patch(`/api/admin/users/${editingUser.id}/permissions`, {
+            permissions: editingPermissions,
+            adminUserId: currentUser.id,
+          });
+        }
+
         toast.success("Usuario actualizado correctamente.");
       } else {
         if (!data.password_hash) {
@@ -214,6 +226,9 @@ const UserManagement = () => {
                     ) : (
                       <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full">
                         <ShieldCheck size={14} /> EDITOR
+                        {usr.permissions?.can_edit_indicators && (
+                          <span className="ml-1 text-xs text-blue-400" title="Puede personalizar indicadores">⚙</span>
+                        )}
                       </span>
                     )}
                   </td>
@@ -311,6 +326,33 @@ const UserManagement = () => {
                   placeholder="********"
                 />
               </div>
+
+              {editingUser && (watch("role") || editingUser?.role) === "EDITOR" && (
+                <div className="pt-2 border-t border-slate-100">
+                  <label className="flex items-center justify-between gap-3 cursor-pointer">
+                    <div>
+                      <p className="text-sm font-bold text-slate-700">Personalizar indicadores</p>
+                      <p className="text-xs text-slate-400">Permite al editor cambiar las etiquetas de escala al crear encuestas</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingPermissions(prev => ({
+                        ...prev,
+                        can_edit_indicators: !prev.can_edit_indicators
+                      }))}
+                      className={`relative w-11 h-6 rounded-full transition-colors ${
+                        editingPermissions.can_edit_indicators
+                          ? "bg-blue-600"
+                          : "bg-slate-200"
+                      }`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                        editingPermissions.can_edit_indicators ? "translate-x-5" : "translate-x-0"
+                      }`} />
+                    </button>
+                  </label>
+                </div>
+              )}
 
               <div className="pt-4 flex justify-end gap-3">
                 <button

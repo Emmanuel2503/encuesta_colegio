@@ -120,19 +120,23 @@ app.post("/api/surveys", async (req, res) => {
 
     // 2. Insert Questions
     const questionQuery = `
-      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text, scale_labels)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `;
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      const scaleLabels = q.scale_labels && Object.keys(q.scale_labels).some(k => q.scale_labels[k]?.trim())
+        ? JSON.stringify(q.scale_labels)
+        : null;
       await client.query(questionQuery, [
         surveyId,
         q.text,
         q.type,
         i,
         q.category || null,
-        q.help_text || null, // Guardamos el texto de ayuda
+        q.help_text || null,
+        scaleLabels,
       ]);
     }
 
@@ -156,7 +160,7 @@ app.post("/api/admin/login", async (req, res) => {
   try {
     // Buscar usuario en la base de datos
     const userRes = await pool.query(
-      "SELECT id, username, password_hash, role, full_name FROM system_users WHERE username = $1",
+      "SELECT id, username, password_hash, role, full_name, permissions FROM system_users WHERE username = $1",
       [username],
     );
 
@@ -179,6 +183,7 @@ app.post("/api/admin/login", async (req, res) => {
         role: user.role,
         full_name: user.full_name,
         username: user.username,
+        permissions: user.permissions || {},
       },
     });
   } catch (error) {
@@ -726,6 +731,20 @@ app.put("/api/surveys/:id", async (req, res) => {
         .json({ error: "No tienes permiso para editar esta encuesta." });
     }
 
+    // Verificar permiso de edición de indicadores para EDITOR
+    let canEditIndicators = false;
+    if (userRole === "ADMIN") {
+      canEditIndicators = true;
+    } else if (userRole === "EDITOR") {
+      const userPermsRes = await client.query(
+        "SELECT permissions FROM system_users WHERE id = $1",
+        [userId]
+      );
+      if (userPermsRes.rows.length > 0) {
+        canEditIndicators = userPermsRes.rows[0].permissions?.can_edit_indicators === true;
+      }
+    }
+
     // Validar que no tenga respuestas
     const submissionsRes = await client.query(
       "SELECT COUNT(*) FROM submissions WHERE survey_id = $1",
@@ -778,11 +797,14 @@ app.put("/api/surveys/:id", async (req, res) => {
     // Insertar nuevas preguntas
     if (questions && Array.isArray(questions)) {
       const questionQuery = `
-      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text, scale_labels)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `;
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
+        const scaleLabels = canEditIndicators && q.scale_labels && Object.keys(q.scale_labels).some(k => q.scale_labels[k]?.trim())
+          ? JSON.stringify(q.scale_labels)
+          : null;
         await client.query(questionQuery, [
           id,
           q.text,
@@ -790,6 +812,7 @@ app.put("/api/surveys/:id", async (req, res) => {
           i,
           q.category || null,
           q.help_text || null,
+          scaleLabels,
         ]);
       }
     }
@@ -880,7 +903,7 @@ app.get("/api/admin/users", async (req, res) => {
       return res.status(403).json({ error: "No autorizado. Se requiere rol ADMIN." });
     }
     const result = await pool.query(
-      "SELECT id, username, full_name, role, created_at FROM system_users ORDER BY id ASC"
+      "SELECT id, username, full_name, role, permissions, created_at FROM system_users ORDER BY id ASC"
     );
     res.json(result.rows);
   } catch (err) {
@@ -954,6 +977,43 @@ app.put("/api/admin/users/:id", async (req, res) => {
   }
 });
 
+// Actualizar permisos de un usuario EDITOR (solo ADMIN)
+app.patch("/api/admin/users/:id/permissions", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { permissions, adminUserId } = req.body;
+
+    const adminCheck = await pool.query(
+      "SELECT role FROM system_users WHERE id = $1",
+      [adminUserId]
+    );
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== "ADMIN") {
+      return res.status(403).json({ error: "No autorizado." });
+    }
+
+    const targetUser = await pool.query(
+      "SELECT username, role FROM system_users WHERE id = $1",
+      [id]
+    );
+    if (targetUser.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado." });
+    }
+    if (targetUser.rows[0].username === "admin") {
+      return res.status(403).json({ error: "No se pueden modificar los permisos del administrador maestro." });
+    }
+
+    await pool.query(
+      "UPDATE system_users SET permissions = $1 WHERE id = $2",
+      [JSON.stringify(permissions), id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al actualizar permisos" });
+  }
+});
+
 // 4. Eliminar usuario
 app.delete("/api/admin/users/:id", async (req, res) => {
   try {
@@ -979,6 +1039,212 @@ app.delete("/api/admin/users/:id", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Error al eliminar usuario" });
+  }
+});
+
+// --- SURVEY GROUPS ---
+
+app.get("/api/public/groups/:link", async (req, res) => {
+  try {
+    const { link } = req.params;
+
+    const groupRes = await pool.query(
+      "SELECT * FROM survey_groups WHERE access_link = $1",
+      [link]
+    );
+    if (groupRes.rows.length === 0) {
+      return res.status(404).json({ error: "Grupo no encontrado" });
+    }
+    const group = groupRes.rows[0];
+
+    if (!group.is_active || (group.expiration_date && new Date(group.expiration_date) < new Date())) {
+      return res.status(410).json({ error: "Este grupo de encuestas ha finalizado", expired: true });
+    }
+
+    const surveysRes = await pool.query(
+      `SELECT s.id, s.title, s.evaluated_name, s.subject, s.access_link, s.is_active,
+              s.expiration_date, sgi.order_index
+       FROM survey_group_items sgi
+       JOIN surveys s ON sgi.survey_id = s.id
+       WHERE sgi.group_id = $1
+       ORDER BY sgi.order_index ASC`,
+      [group.id]
+    );
+
+    res.json({
+      group: { id: group.id, name: group.name, year_level: group.year_level, expiration_date: group.expiration_date },
+      surveys: surveysRes.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error del servidor" });
+  }
+});
+
+app.get("/api/survey-groups", async (req, res) => {
+  try {
+    const { userId, userRole } = req.query;
+
+    let query;
+    let params;
+
+    if (userRole === "ADMIN") {
+      query = `
+        SELECT sg.*, COUNT(sgi.id) as survey_count
+        FROM survey_groups sg
+        LEFT JOIN survey_group_items sgi ON sg.id = sgi.group_id
+        GROUP BY sg.id
+        ORDER BY sg.created_at DESC
+      `;
+      params = [];
+    } else {
+      query = `
+        SELECT sg.*, COUNT(sgi.id) as survey_count
+        FROM survey_groups sg
+        LEFT JOIN survey_group_items sgi ON sg.id = sgi.group_id
+        WHERE sg.created_by = $1
+        GROUP BY sg.id
+        ORDER BY sg.created_at DESC
+      `;
+      params = [userId];
+    }
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al obtener grupos" });
+  }
+});
+
+app.get("/api/survey-groups/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const groupRes = await pool.query("SELECT * FROM survey_groups WHERE id = $1", [id]);
+    if (groupRes.rows.length === 0) {
+      return res.status(404).json({ error: "Grupo no encontrado" });
+    }
+
+    const itemsRes = await pool.query(
+      `SELECT sgi.order_index, s.id, s.title, s.evaluated_name, s.subject, s.access_link
+       FROM survey_group_items sgi
+       JOIN surveys s ON sgi.survey_id = s.id
+       WHERE sgi.group_id = $1
+       ORDER BY sgi.order_index ASC`,
+      [id]
+    );
+
+    res.json({ ...groupRes.rows[0], surveys: itemsRes.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al obtener grupo" });
+  }
+});
+
+app.post("/api/survey-groups", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { name, year_level, expiration_date, survey_ids, userId } = req.body;
+
+    if (!name || !year_level || !survey_ids || survey_ids.length === 0) {
+      return res.status(400).json({ error: "Nombre, año y al menos una encuesta son obligatorios." });
+    }
+
+    await client.query("BEGIN");
+
+    const groupRes = await client.query(
+      `INSERT INTO survey_groups (name, year_level, expiration_date, created_by)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [name, year_level, expiration_date || null, userId || null]
+    );
+    const group = groupRes.rows[0];
+
+    for (let i = 0; i < survey_ids.length; i++) {
+      await client.query(
+        "INSERT INTO survey_group_items (group_id, survey_id, order_index) VALUES ($1, $2, $3)",
+        [group.id, survey_ids[i], i]
+      );
+    }
+
+    await client.query("COMMIT");
+    res.status(201).json({ message: "Grupo creado", id: group.id, access_link: group.access_link });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Error al crear grupo" });
+  } finally {
+    client.release();
+  }
+});
+
+app.put("/api/survey-groups/:id", async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { id } = req.params;
+    const { name, year_level, expiration_date, is_active, survey_ids, userId, userRole } = req.body;
+
+    const groupRes = await client.query("SELECT * FROM survey_groups WHERE id = $1", [id]);
+    if (groupRes.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ error: "Grupo no encontrado" });
+    }
+
+    const group = groupRes.rows[0];
+    const canEdit = userRole === "ADMIN" || String(group.created_by) === String(userId);
+    if (!canEdit) {
+      client.release();
+      return res.status(403).json({ error: "No tienes permiso para editar este grupo." });
+    }
+
+    await client.query("BEGIN");
+
+    await client.query(
+      "UPDATE survey_groups SET name=$1, year_level=$2, expiration_date=$3, is_active=$4 WHERE id=$5",
+      [name, year_level, expiration_date || null, is_active, id]
+    );
+
+    if (survey_ids && Array.isArray(survey_ids)) {
+      await client.query("DELETE FROM survey_group_items WHERE group_id = $1", [id]);
+      for (let i = 0; i < survey_ids.length; i++) {
+        await client.query(
+          "INSERT INTO survey_group_items (group_id, survey_id, order_index) VALUES ($1, $2, $3)",
+          [id, survey_ids[i], i]
+        );
+      }
+    }
+
+    await client.query("COMMIT");
+    res.json({ message: "Grupo actualizado correctamente" });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Error al actualizar grupo" });
+  } finally {
+    client.release();
+  }
+});
+
+app.delete("/api/survey-groups/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId, userRole } = req.body;
+
+    const groupRes = await pool.query("SELECT * FROM survey_groups WHERE id = $1", [id]);
+    if (groupRes.rows.length === 0) {
+      return res.status(404).json({ error: "Grupo no encontrado" });
+    }
+
+    const canDelete = userRole === "ADMIN" || String(groupRes.rows[0].created_by) === String(userId);
+    if (!canDelete) {
+      return res.status(403).json({ error: "No tienes permiso para eliminar este grupo." });
+    }
+
+    await pool.query("DELETE FROM survey_groups WHERE id = $1", [id]);
+    res.json({ message: "Grupo eliminado" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al eliminar grupo" });
   }
 });
 

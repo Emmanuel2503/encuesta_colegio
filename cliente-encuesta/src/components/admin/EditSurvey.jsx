@@ -20,6 +20,10 @@ const EditSurvey = () => {
   const [isEditable, setIsEditable] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [user, setUser] = useState(null);
+  const [expandedLabels, setExpandedLabels] = useState({});
+
+  const canEditIndicators =
+    user?.role === "ADMIN" || user?.permissions?.can_edit_indicators === true;
 
   const {
     register,
@@ -70,6 +74,7 @@ const EditSurvey = () => {
           type: q.question_type,
           category: q.category || "General",
           help_text: q.help_text || "",
+          scale_labels: q.scale_labels || undefined,
         }));
         replace(formattedQuestions);
 
@@ -111,7 +116,14 @@ const EditSurvey = () => {
         userRole: user?.role,
         is_active: isStillActive,
       };
-      console.log("Payload enviado al backend:", payload);
+
+      payload.questions = payload.questions.map((q) => ({
+        ...q,
+        scale_labels:
+          q.scale_labels && Object.values(q.scale_labels).some((v) => v?.trim())
+            ? q.scale_labels
+            : undefined,
+      }));
 
       await api.put(`/api/surveys/${id}`, payload);
 
@@ -142,24 +154,69 @@ const EditSurvey = () => {
         {fields.map((field, index) => {
           if (field.category !== sectionTitle) return null;
           return (
-            <div key={field.id} className="flex gap-3 items-center group">
-              <span className="text-gray-300 font-bold text-sm w-6">
+            <div key={field.id} className="flex gap-3 items-start group">
+              <span className="text-gray-300 font-bold text-sm w-6 mt-2">
                 #{index + 1}
               </span>
-              <input
-                {...register(`questions.${index}.text`, { required: true })}
-                disabled={!isEditable} //<-- DESHABILITAR SI NO ES EDITABLE
-                className={`flex-1 border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors ${
-                  !isEditable
-                    ? "cursor-not-allowed text-gray-400 bg-gray-50 px-2 rounded-t"
-                    : ""
-                }`}
-                placeholder="Escribe el criterio..."
-              />
+              <div className="flex-1">
+                <input
+                  {...register(`questions.${index}.text`, { required: true })}
+                  disabled={!isEditable}
+                  className={`w-full border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors ${
+                    !isEditable
+                      ? "cursor-not-allowed text-gray-400 bg-gray-50 px-2 rounded-t"
+                      : ""
+                  }`}
+                  placeholder="Escribe el criterio..."
+                />
+                {canEditIndicators && isEditable && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedLabels((prev) => ({
+                          ...prev,
+                          [`section_${index}`]: !prev[`section_${index}`],
+                        }))
+                      }
+                      className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1"
+                    >
+                      {expandedLabels[`section_${index}`]
+                        ? "▲ Ocultar etiquetas"
+                        : "▼ Personalizar etiquetas"}
+                    </button>
+                    {expandedLabels[`section_${index}`] && (
+                      <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                        <p className="text-xs font-bold text-gray-500 mb-2">
+                          Etiquetas personalizadas (opcional)
+                        </p>
+                        {[
+                          { key: "1", placeholder: "SET - Totalmente" },
+                          { key: "0.5", placeholder: "SEP - Parcialmente" },
+                          { key: "0", placeholder: "NSE - No se evidencia" },
+                        ].map(({ key, placeholder }) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-blue-500 w-8">
+                              {key}
+                            </span>
+                            <input
+                              {...register(
+                                `questions.${index}.scale_labels.${key}`,
+                              )}
+                              className="flex-1 text-xs border-b border-gray-200 py-1 focus:border-blue-400 outline-none bg-transparent"
+                              placeholder={placeholder}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
               <button
                 onClick={() => remove(index)}
                 type="button"
-                disabled={!isEditable} // ← Deshabilitar si no es editable
+                disabled={!isEditable}
                 className={`text-gray-300 hover:text-red-500 transition-colors mt-2 ${
                   !isEditable
                     ? "cursor-not-allowed opacity-50 hover:text-gray-300"
@@ -404,6 +461,56 @@ const EditSurvey = () => {
                       } border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none`}
                       placeholder="Texto de ayuda (Opcional)"
                     />
+                    {canEditIndicators &&
+                      isEditable &&
+                      watch(`questions.${index}.type`) === "ESCALA_1_5" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedLabels((prev) => ({
+                              ...prev,
+                              [index]: !prev[index],
+                            }))
+                          }
+                          className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1 flex items-center gap-1"
+                        >
+                          {expandedLabels[index]
+                            ? "▲ Ocultar etiquetas"
+                            : "▼ Personalizar etiquetas"}
+                        </button>
+                      )}
+                    {canEditIndicators &&
+                      isEditable &&
+                      watch(`questions.${index}.type`) === "ESCALA_1_5" &&
+                      expandedLabels[index] && (
+                        <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                          <p className="text-xs font-bold text-gray-500 mb-2">
+                            Etiquetas personalizadas (opcional)
+                          </p>
+                          {[1, 2, 3, 4, 5].map((v) => (
+                            <div key={v} className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-blue-500 w-4">
+                                {v}
+                              </span>
+                              <input
+                                {...register(
+                                  `questions.${index}.scale_labels.${v}`,
+                                )}
+                                className="flex-1 text-xs border-b border-gray-200 py-1 focus:border-blue-400 outline-none bg-transparent"
+                                placeholder={
+                                  [
+                                    "Totalmente en Desacuerdo",
+                                    "En Desacuerdo",
+                                    "Neutral",
+                                    "De Acuerdo",
+                                    "Totalmente de Acuerdo",
+                                  ][v - 1]
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                   </div>
                   <select
                     {...register(`questions.${index}.type`)}
