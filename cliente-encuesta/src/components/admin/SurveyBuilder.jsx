@@ -18,6 +18,7 @@ const SurveyBuilder = () => {
   const location = useLocation();
   const cloneData = location.state?.cloneData;
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedLabels, setExpandedLabels] = useState({});
 
   const {
     register,
@@ -57,6 +58,8 @@ const SurveyBuilder = () => {
         text: q.question_text,
         type: q.question_type,
         category: q.category || "General",
+        help_text: q.help_text || "",
+        scale_labels: q.scale_labels || undefined,
       }));
 
       replace(formattedQuestions);
@@ -121,6 +124,15 @@ const SurveyBuilder = () => {
         payload.userId = user.id;
       }
 
+      payload.questions = payload.questions.map((q) => ({
+        ...q,
+        scale_labels:
+          q.scale_labels &&
+          Object.values(q.scale_labels).some((v) => v?.trim())
+            ? q.scale_labels
+            : undefined,
+      }));
+
       const res = await api.post("/api/surveys", payload);
 
       toast.dismiss(loadingToast);
@@ -164,19 +176,60 @@ const SurveyBuilder = () => {
         {fields.map((field, index) => {
           if (field.category !== sectionTitle) return null;
           return (
-            <div key={field.id} className="flex gap-3 items-center group">
-              <span className="text-gray-300 font-bold text-sm w-6">
+            <div key={field.id} className="flex gap-3 items-start group">
+              <span className="text-gray-300 font-bold text-sm w-6 mt-2">
                 #{index + 1}
               </span>
-              <input
-                {...register(`questions.${index}.text`, { required: true })}
-                className="flex-1 border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors"
-                placeholder="Escribe el criterio..."
-              />
+              <div className="flex-1">
+                <input
+                  {...register(`questions.${index}.text`, { required: true })}
+                  className="w-full border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors"
+                  placeholder="Escribe el criterio..."
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setExpandedLabels((prev) => ({
+                      ...prev,
+                      [`section_${index}`]: !prev[`section_${index}`],
+                    }))
+                  }
+                  className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1"
+                >
+                  {expandedLabels[`section_${index}`]
+                    ? "▲ Ocultar etiquetas"
+                    : "▼ Personalizar etiquetas"}
+                </button>
+                {expandedLabels[`section_${index}`] && (
+                  <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                    <p className="text-xs font-bold text-gray-500 mb-2">
+                      Etiquetas personalizadas (opcional)
+                    </p>
+                    {[
+                      { key: "1", placeholder: "SET - Totalmente" },
+                      { key: "0.5", placeholder: "SEP - Parcialmente" },
+                      { key: "0", placeholder: "NSE - No se evidencia" },
+                    ].map(({ key, placeholder }) => (
+                      <div key={key} className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-blue-500 w-8">
+                          {key}
+                        </span>
+                        <input
+                          {...register(
+                            `questions.${index}.scale_labels.${key}`,
+                          )}
+                          className="flex-1 text-xs border-b border-gray-200 py-1 focus:border-blue-400 outline-none bg-transparent"
+                          placeholder={placeholder}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 type="button"
                 onClick={() => remove(index)}
-                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
+                className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all mt-2"
               >
                 <Trash2 size={18} />
               </button>
@@ -359,6 +412,52 @@ const SurveyBuilder = () => {
                       className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none"
                       placeholder="Texto de ayuda (Opcional) - Aparecerá como tooltip para el estudiante"
                     />
+                    {watch(`questions.${index}.type`) === "ESCALA_1_5" && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedLabels((prev) => ({
+                            ...prev,
+                            [index]: !prev[index],
+                          }))
+                        }
+                        className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1 flex items-center gap-1"
+                      >
+                        {expandedLabels[index]
+                          ? "▲ Ocultar etiquetas"
+                          : "▼ Personalizar etiquetas"}
+                      </button>
+                    )}
+                    {watch(`questions.${index}.type`) === "ESCALA_1_5" &&
+                      expandedLabels[index] && (
+                        <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                          <p className="text-xs font-bold text-gray-500 mb-2">
+                            Etiquetas personalizadas (opcional)
+                          </p>
+                          {[1, 2, 3, 4, 5].map((v) => (
+                            <div key={v} className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-blue-500 w-4">
+                                {v}
+                              </span>
+                              <input
+                                {...register(
+                                  `questions.${index}.scale_labels.${v}`,
+                                )}
+                                className="flex-1 text-xs border-b border-gray-200 py-1 focus:border-blue-400 outline-none bg-transparent"
+                                placeholder={
+                                  [
+                                    "Totalmente en Desacuerdo",
+                                    "En Desacuerdo",
+                                    "Neutral",
+                                    "De Acuerdo",
+                                    "Totalmente de Acuerdo",
+                                  ][v - 1]
+                                }
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                   </div>
                   <select
                     {...register(`questions.${index}.type`)}

@@ -120,19 +120,23 @@ app.post("/api/surveys", async (req, res) => {
 
     // 2. Insert Questions
     const questionQuery = `
-      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text, scale_labels)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `;
 
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
+      const scaleLabels = q.scale_labels && Object.keys(q.scale_labels).some(k => q.scale_labels[k]?.trim())
+        ? JSON.stringify(q.scale_labels)
+        : null;
       await client.query(questionQuery, [
         surveyId,
         q.text,
         q.type,
         i,
         q.category || null,
-        q.help_text || null, // Guardamos el texto de ayuda
+        q.help_text || null,
+        scaleLabels,
       ]);
     }
 
@@ -778,11 +782,14 @@ app.put("/api/surveys/:id", async (req, res) => {
     // Insertar nuevas preguntas
     if (questions && Array.isArray(questions)) {
       const questionQuery = `
-      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text) 
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO questions (survey_id, question_text, question_type, order_index, category, help_text, scale_labels)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
     `;
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
+        const scaleLabels = q.scale_labels && Object.keys(q.scale_labels).some(k => q.scale_labels[k]?.trim())
+          ? JSON.stringify(q.scale_labels)
+          : null;
         await client.query(questionQuery, [
           id,
           q.text,
@@ -790,6 +797,7 @@ app.put("/api/surveys/:id", async (req, res) => {
           i,
           q.category || null,
           q.help_text || null,
+          scaleLabels,
         ]);
       }
     }

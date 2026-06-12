@@ -292,17 +292,17 @@ const SurveyPublicView = () => {
                       <div className="flex flex-wrap gap-2">
                         {[
                           {
-                            l: "SET - Totalmente",
+                            l: q.scale_labels?.["1"] || "SET - Totalmente",
                             v: 1,
                             c: "peer-checked:bg-green-600 peer-checked:border-green-600",
                           },
                           {
-                            l: "SEP - Parcialmente",
+                            l: q.scale_labels?.["0.5"] || "SEP - Parcialmente",
                             v: 0.5,
                             c: "peer-checked:bg-yellow-500 peer-checked:border-yellow-500",
                           },
                           {
-                            l: "NSE - No se evidencia",
+                            l: q.scale_labels?.["0"] || "NSE - No se evidencia",
                             v: 0,
                             c: "peer-checked:bg-red-500 peer-checked:border-red-500",
                           },
@@ -331,9 +331,9 @@ const SurveyPublicView = () => {
 
                     {/* OPCIONES TIPO ESTRELLAS */}
                     {q.question_type === "ESCALA_1_5" && (
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         {[1, 2, 3, 4, 5].map((v) => (
-                          <label key={v} className="cursor-pointer">
+                          <label key={v} className="cursor-pointer flex flex-col items-center gap-1">
                             <input
                               type="radio"
                               value={v}
@@ -345,6 +345,11 @@ const SurveyPublicView = () => {
                             <div className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 font-bold hover:bg-blue-50 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-600 transition-all">
                               {v}
                             </div>
+                            {q.scale_labels?.[String(v)] && (
+                              <span className="text-xs text-gray-400 text-center max-w-[60px] leading-tight">
+                                {q.scale_labels[String(v)]}
+                              </span>
+                            )}
                           </label>
                         ))}
                       </div>
