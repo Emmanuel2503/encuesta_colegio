@@ -19,6 +19,7 @@ const SurveyBuilder = () => {
   const cloneData = location.state?.cloneData;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedLabels, setExpandedLabels] = useState({});
+  const [canEditIndicators, setCanEditIndicators] = useState(false);
 
   const {
     register,
@@ -43,7 +44,15 @@ const SurveyBuilder = () => {
     name: "questions",
   });
 
-  // Fetch Assignments on Mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user_data");
+    if (storedUser) {
+      const user = JSON.parse(storedUser);
+      setCanEditIndicators(
+        user.role === "ADMIN" || user.permissions?.can_edit_indicators === true
+      );
+    }
+  }, []);
 
   useEffect(() => {
     if (cloneData) {
@@ -186,44 +195,48 @@ const SurveyBuilder = () => {
                   className="w-full border-b border-gray-200 py-2 focus:border-blue-500 outline-none transition-colors"
                   placeholder="Escribe el criterio..."
                 />
-                <button
-                  type="button"
-                  onClick={() =>
-                    setExpandedLabels((prev) => ({
-                      ...prev,
-                      [`section_${index}`]: !prev[`section_${index}`],
-                    }))
-                  }
-                  className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1"
-                >
-                  {expandedLabels[`section_${index}`]
-                    ? "▲ Ocultar etiquetas"
-                    : "▼ Personalizar etiquetas"}
-                </button>
-                {expandedLabels[`section_${index}`] && (
-                  <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
-                    <p className="text-xs font-bold text-gray-500 mb-2">
-                      Etiquetas personalizadas (opcional)
-                    </p>
-                    {[
-                      { key: "1", placeholder: "SET - Totalmente" },
-                      { key: "0.5", placeholder: "SEP - Parcialmente" },
-                      { key: "0", placeholder: "NSE - No se evidencia" },
-                    ].map(({ key, placeholder }) => (
-                      <div key={key} className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-blue-500 w-8">
-                          {key}
-                        </span>
-                        <input
-                          {...register(
-                            `questions.${index}.scale_labels.${key}`,
-                          )}
-                          className="flex-1 text-xs border-b border-gray-200 py-1 focus:border-blue-400 outline-none bg-transparent"
-                          placeholder={placeholder}
-                        />
+                {canEditIndicators && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setExpandedLabels((prev) => ({
+                          ...prev,
+                          [`section_${index}`]: !prev[`section_${index}`],
+                        }))
+                      }
+                      className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1"
+                    >
+                      {expandedLabels[`section_${index}`]
+                        ? "▲ Ocultar etiquetas"
+                        : "▼ Personalizar etiquetas"}
+                    </button>
+                    {expandedLabels[`section_${index}`] && (
+                      <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
+                        <p className="text-xs font-bold text-gray-500 mb-2">
+                          Etiquetas personalizadas (opcional)
+                        </p>
+                        {[
+                          { key: "1", placeholder: "SET - Totalmente" },
+                          { key: "0.5", placeholder: "SEP - Parcialmente" },
+                          { key: "0", placeholder: "NSE - No se evidencia" },
+                        ].map(({ key, placeholder }) => (
+                          <div key={key} className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-blue-500 w-8">
+                              {key}
+                            </span>
+                            <input
+                              {...register(
+                                `questions.${index}.scale_labels.${key}`,
+                              )}
+                              className="flex-1 text-xs border-b border-gray-200 py-1 focus:border-blue-400 outline-none bg-transparent"
+                              placeholder={placeholder}
+                            />
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )}
+                  </>
                 )}
               </div>
               <button
@@ -412,23 +425,25 @@ const SurveyBuilder = () => {
                       className="w-full text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-100 outline-none"
                       placeholder="Texto de ayuda (Opcional) - Aparecerá como tooltip para el estudiante"
                     />
-                    {watch(`questions.${index}.type`) === "ESCALA_1_5" && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedLabels((prev) => ({
-                            ...prev,
-                            [index]: !prev[index],
-                          }))
-                        }
-                        className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1 flex items-center gap-1"
-                      >
-                        {expandedLabels[index]
-                          ? "▲ Ocultar etiquetas"
-                          : "▼ Personalizar etiquetas"}
-                      </button>
-                    )}
-                    {watch(`questions.${index}.type`) === "ESCALA_1_5" &&
+                    {canEditIndicators &&
+                      watch(`questions.${index}.type`) === "ESCALA_1_5" && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedLabels((prev) => ({
+                              ...prev,
+                              [index]: !prev[index],
+                            }))
+                          }
+                          className="text-xs text-blue-400 hover:text-blue-600 font-medium mt-1 flex items-center gap-1"
+                        >
+                          {expandedLabels[index]
+                            ? "▲ Ocultar etiquetas"
+                            : "▼ Personalizar etiquetas"}
+                        </button>
+                      )}
+                    {canEditIndicators &&
+                      watch(`questions.${index}.type`) === "ESCALA_1_5" &&
                       expandedLabels[index] && (
                         <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-2">
                           <p className="text-xs font-bold text-gray-500 mb-2">

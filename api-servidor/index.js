@@ -160,7 +160,7 @@ app.post("/api/admin/login", async (req, res) => {
   try {
     // Buscar usuario en la base de datos
     const userRes = await pool.query(
-      "SELECT id, username, password_hash, role, full_name FROM system_users WHERE username = $1",
+      "SELECT id, username, password_hash, role, full_name, permissions FROM system_users WHERE username = $1",
       [username],
     );
 
@@ -183,6 +183,7 @@ app.post("/api/admin/login", async (req, res) => {
         role: user.role,
         full_name: user.full_name,
         username: user.username,
+        permissions: user.permissions || {},
       },
     });
   } catch (error) {
@@ -730,6 +731,20 @@ app.put("/api/surveys/:id", async (req, res) => {
         .json({ error: "No tienes permiso para editar esta encuesta." });
     }
 
+    // Verificar permiso de edición de indicadores para EDITOR
+    let canEditIndicators = false;
+    if (userRole === "ADMIN") {
+      canEditIndicators = true;
+    } else if (userRole === "EDITOR") {
+      const userPermsRes = await client.query(
+        "SELECT permissions FROM system_users WHERE id = $1",
+        [userId]
+      );
+      if (userPermsRes.rows.length > 0) {
+        canEditIndicators = userPermsRes.rows[0].permissions?.can_edit_indicators === true;
+      }
+    }
+
     // Validar que no tenga respuestas
     const submissionsRes = await client.query(
       "SELECT COUNT(*) FROM submissions WHERE survey_id = $1",
@@ -787,7 +802,7 @@ app.put("/api/surveys/:id", async (req, res) => {
     `;
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
-        const scaleLabels = q.scale_labels && Object.keys(q.scale_labels).some(k => q.scale_labels[k]?.trim())
+        const scaleLabels = canEditIndicators && q.scale_labels && Object.keys(q.scale_labels).some(k => q.scale_labels[k]?.trim())
           ? JSON.stringify(q.scale_labels)
           : null;
         await client.query(questionQuery, [
@@ -888,7 +903,7 @@ app.get("/api/admin/users", async (req, res) => {
       return res.status(403).json({ error: "No autorizado. Se requiere rol ADMIN." });
     }
     const result = await pool.query(
-      "SELECT id, username, full_name, role, created_at FROM system_users ORDER BY id ASC"
+      "SELECT id, username, full_name, role, permissions, created_at FROM system_users ORDER BY id ASC"
     );
     res.json(result.rows);
   } catch (err) {
@@ -959,6 +974,43 @@ app.put("/api/admin/users/:id", async (req, res) => {
       return res.status(400).json({ error: "El nombre de usuario ya está en uso." });
     }
     res.status(500).json({ error: "Error al actualizar usuario" });
+  }
+});
+
+// Actualizar permisos de un usuario EDITOR (solo ADMIN)
+app.patch("/api/admin/users/:id/permissions", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { permissions, adminUserId } = req.body;
+
+    const adminCheck = await pool.query(
+      "SELECT role FROM system_users WHERE id = $1",
+      [adminUserId]
+    );
+    if (adminCheck.rows.length === 0 || adminCheck.rows[0].role !== "ADMIN") {
+      return res.status(403).json({ error: "No autorizado." });
+    }
+
+    const targetUser = await pool.query(
+      "SELECT username, role FROM system_users WHERE id = $1",
+      [id]
+    );
+    if (targetUser.rows.length === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado." });
+    }
+    if (targetUser.rows[0].username === "admin") {
+      return res.status(403).json({ error: "No se pueden modificar los permisos del administrador maestro." });
+    }
+
+    await pool.query(
+      "UPDATE system_users SET permissions = $1 WHERE id = $2",
+      [JSON.stringify(permissions), id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Error al actualizar permisos" });
   }
 });
 
